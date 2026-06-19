@@ -10,8 +10,8 @@ BIP324 encrypts Bitcoin P2P v2 traffic, but encryption does not hide packet size
 
 I worked on this from two directions:
 
-1. A controlled **BIP324 traffic lab** built with Warnet.
-2. A passive **BIP324 traffic analysis pipeline** that can be applied both to the lab output and to mainnet PCAPs.
+1. A controlled **BIP324 traffic lab** built with Warnet: [`victorandre957/bip324-traffic-lab`](https://github.com/victorandre957/bip324-traffic-lab).
+2. A passive **BIP324 traffic analysis pipeline** that can be applied both to the lab output and to mainnet PCAPs: [`victorandre957/bip324-traffic-analysis`](https://github.com/victorandre957/bip324-traffic-analysis).
 
 This post summarizes what I have found so far, separating controlled Warnet results from exploratory mainnet results, and explains why the findings are relevant to a separate Bitcoin Core feature I have been experimenting with: opt-in randomization of the local P2P listening port.
 
@@ -73,7 +73,7 @@ This comparison matters because a default port is a very strong shortcut. If an 
 
 The strongest signal so far is the BIP324 handshake. In the current Warnet run, it is detected correctly across all three views.
 
-![Warnet F1 score by event and analysis view](/images/bip324-traffic-analysis/warnet-f1-by-event.svg)
+![Warnet F1 score by event and analysis view](https://victorandre957.github.io/personal_blog/images/bip324-traffic-analysis/warnet-f1-by-event.svg)
 
 The handshake detector is looking for early bidirectional encrypted-looking payloads with BIP324-compatible initial sizes and no cleartext protocol hints. It is not using the Bitcoin port as a requirement. That is important: the port makes discovery easier, but the handshake itself also has a visible metadata shape.
 
@@ -85,7 +85,7 @@ Compact blocks, large transactions, and address responses are weaker. They produ
 
 The false-positive pattern is as important as the raw score.
 
-![Warnet false positives by event and analysis view](/images/bip324-traffic-analysis/warnet-false-positives.svg)
+![Warnet false positives by event and analysis view](https://victorandre957.github.io/personal_blog/images/bip324-traffic-analysis/warnet-false-positives.svg)
 
 For block arrival, filtering by Bitcoin port cuts false positives from 1710 to 831 in this run. The BIP324-handshake filter gives the same result. That is still noisy, but it is better than evaluating all flows.
 
@@ -97,7 +97,7 @@ That is a useful negative result: address-response detection is currently explor
 
 Filtering by port or by detected BIP324 handshakes greatly reduces the number of flows that later heuristics need to inspect.
 
-![Warnet flow scope comparison](/images/bip324-traffic-analysis/warnet-flow-scope.svg)
+![Warnet flow scope comparison](https://victorandre957.github.io/personal_blog/images/bip324-traffic-analysis/warnet-flow-scope.svg)
 
 In this Warnet run, the all-flow view contains 767 flows. The Bitcoin-port view contains 25 flows. The BIP324-handshake-filtered view also contains 25 candidate flows. In other words, in this controlled capture, filtering by the known Bitcoin port and filtering by the detected BIP324 handshake produce practically the same flow set.
 
@@ -107,7 +107,7 @@ This is exactly why the default port matters. Even if encryption hides message c
 
 I also applied the same passive methodology to two longer mainnet captures shared by b10c. These captures do not include Bitcoin Core logs in my analysis dataset, so there is no ground truth for true positives or false positives. The chart below should be read as candidate volume, not accuracy.
 
-![Mainnet passive candidate counts](/images/bip324-traffic-analysis/mainnet-candidate-counts.svg)
+![Mainnet passive candidate counts](https://victorandre957.github.io/personal_blog/images/bip324-traffic-analysis/mainnet-candidate-counts.svg)
 
 In these captures, the Bitcoin-port-filtered view is identical to the all-flow view. I interpret this as a sign that the exported PCAPs are already heavily scoped around Bitcoin-port traffic. In that setup, filtering on `8333` cannot improve the result because the capture itself has already removed most of the unrelated traffic.
 
