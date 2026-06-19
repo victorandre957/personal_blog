@@ -24,6 +24,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Build Zola site and upload Pages artifact
         uses: getzola/github-pages@066755243e69f508fd1a74739fbf1a65f656c790
         with:
