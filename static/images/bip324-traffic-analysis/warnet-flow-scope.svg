@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="360" viewBox="0 0 980 360" role="img" aria-labelledby="title desc">
+  <title id="title">Port filter and handshake filter reach the same scope</title>
+  <desc id="desc">Horizontal bar chart showing that the Bitcoin port filter and BIP324 handshake filter both reduce 767 scoped Warnet flows to the same 25 candidate flows.</desc>
+  <rect width="980" height="360" fill="#ffffff"/>
+  <text x="40" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#222">Port filter and handshake filter reach the same scope</text>
+  <text x="40" y="66" font-family="Arial, sans-serif" font-size="14" fill="#555">In this Warnet run, both filters reduce 767 scoped flows to the same 25 Bitcoin/BIP324 candidate flows.</text>
+  <g font-family="Arial, sans-serif" font-size="15" fill="#333">
+    <text x="40" y="124">all flows</text>
+    <rect x="220" y="103" width="560" height="28" fill="#4c78a8"/><text x="792" y="123">767 flows</text>
+    <text x="40" y="184">bitcoin port</text>
+    <rect x="220" y="163" width="18" height="28" fill="#f58518"/><text x="250" y="183">25 flows</text>
+    <text x="40" y="244">BIP324 handshake filter</text>
+    <rect x="220" y="223" width="18" height="28" fill="#54a24b"/><text x="250" y="243">25 flows</text>
+  </g>
+  <text x="40" y="310" font-family="Arial, sans-serif" font-size="13" fill="#555">A default port gives the observer this reduction almost for free; without it, the observer must infer the scope from traffic metadata.</text>
+</svg>

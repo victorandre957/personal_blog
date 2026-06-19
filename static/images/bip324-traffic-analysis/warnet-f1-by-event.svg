@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520" role="img" aria-labelledby="title desc">
+  <title id="title">Warnet F1 score by event and analysis view</title>
+  <desc id="desc">Grouped horizontal bar chart comparing F1 scores for all flows, Bitcoin port filter, and BIP324 handshake filter.</desc>
+  <rect width="980" height="520" fill="#ffffff"/>
+  <text x="40" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#222">Warnet F1 score by event</text>
+  <text x="40" y="64" font-family="Arial, sans-serif" font-size="14" fill="#555">Higher is better. Values come from the controlled Warnet run with Bitcoin Core log ground truth.</text>
+  <rect x="40" y="84" width="14" height="14" fill="#4c78a8"/><text x="62" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">all flows</text>
+  <rect x="150" y="84" width="14" height="14" fill="#f58518"/><text x="172" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">bitcoin port</text>
+  <rect x="270" y="84" width="14" height="14" fill="#54a24b"/><text x="292" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">BIP324 handshake filter</text>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#333">
+    <text x="40" y="143">BIP324 handshake</text>
+    <rect x="230" y="126" width="360" height="12" fill="#4c78a8"/><text x="600" y="137">1.00</text>
+    <rect x="230" y="144" width="360" height="12" fill="#f58518"/><text x="600" y="155">1.00</text>
+    <rect x="230" y="162" width="360" height="12" fill="#54a24b"/><text x="600" y="173">1.00</text>
+
+    <text x="40" y="213">Block arrival</text>
+    <rect x="230" y="196" width="60" height="12" fill="#4c78a8"/><text x="300" y="207">0.17</text>
+    <rect x="230" y="214" width="78" height="12" fill="#f58518"/><text x="318" y="225">0.22</text>
+    <rect x="230" y="232" width="78" height="12" fill="#54a24b"/><text x="318" y="243">0.22</text>
+
+    <text x="40" y="283">Compact block</text>
+    <rect x="230" y="266" width="75" height="12" fill="#4c78a8"/><text x="315" y="277">0.21</text>
+    <rect x="230" y="284" width="77" height="12" fill="#f58518"/><text x="317" y="295">0.21</text>
+    <rect x="230" y="302" width="77" height="12" fill="#54a24b"/><text x="317" y="313">0.21</text>
+
+    <text x="40" y="353">Large transaction</text>
+    <rect x="230" y="336" width="258" height="12" fill="#4c78a8"/><text x="498" y="347">0.72</text>
+    <rect x="230" y="354" width="264" height="12" fill="#f58518"/><text x="504" y="365">0.73</text>
+    <rect x="230" y="372" width="264" height="12" fill="#54a24b"/><text x="504" y="383">0.73</text>
+
+    <text x="40" y="423">Address response</text>
+    <rect x="230" y="406" width="102" height="12" fill="#4c78a8"/><text x="342" y="417">0.28</text>
+    <rect x="230" y="424" width="102" height="12" fill="#f58518"/><text x="342" y="435">0.28</text>
+    <rect x="230" y="442" width="102" height="12" fill="#54a24b"/><text x="342" y="453">0.28</text>
+  </g>
+  <line x1="230" y1="475" x2="590" y2="475" stroke="#ccc"/>
+  <text x="226" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">0</text>
+  <text x="405" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">0.5</text>
+  <text x="582" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">1.0</text>
+</svg>

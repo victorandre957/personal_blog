@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520" role="img" aria-labelledby="title desc">
+  <title id="title">Mainnet passive candidate counts</title>
+  <desc id="desc">Log-scaled horizontal bar chart comparing candidate counts from two mainnet captures without log ground truth.</desc>
+  <rect width="980" height="520" fill="#ffffff"/>
+  <text x="40" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#222">Mainnet candidate counts</text>
+  <text x="40" y="64" font-family="Arial, sans-serif" font-size="14" fill="#555">No node logs were available here, so these are candidates only, not precision or recall.</text>
+  <rect x="40" y="84" width="14" height="14" fill="#4c78a8"/><text x="62" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">capture A</text>
+  <rect x="150" y="84" width="14" height="14" fill="#f58518"/><text x="172" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">capture B</text>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#333">
+    <text x="40" y="143">Address response</text>
+    <rect x="230" y="126" width="560" height="14" fill="#4c78a8"/><text x="802" y="138">138,108</text>
+    <rect x="230" y="146" width="556" height="14" fill="#f58518"/><text x="798" y="158">125,720</text>
+
+    <text x="40" y="213">Large transaction</text>
+    <rect x="230" y="196" width="468" height="14" fill="#4c78a8"/><text x="710" y="208">19,635</text>
+    <rect x="230" y="216" width="467" height="14" fill="#f58518"/><text x="709" y="228">19,384</text>
+
+    <text x="40" y="283">Compact block</text>
+    <rect x="230" y="266" width="329" height="14" fill="#4c78a8"/><text x="571" y="278">1,043</text>
+    <rect x="230" y="286" width="331" height="14" fill="#f58518"/><text x="573" y="298">1,083</text>
+
+    <text x="40" y="353">BIP324 handshake</text>
+    <rect x="230" y="336" width="290" height="14" fill="#4c78a8"/><text x="532" y="348">456</text>
+    <rect x="230" y="356" width="284" height="14" fill="#f58518"/><text x="526" y="368">400</text>
+
+    <text x="40" y="423">Block arrival</text>
+    <rect x="230" y="406" width="187" height="14" fill="#4c78a8"/><text x="429" y="418">51</text>
+    <rect x="230" y="426" width="198" height="14" fill="#f58518"/><text x="440" y="438">64</text>
+  </g>
+  <text x="40" y="486" font-family="Arial, sans-serif" font-size="13" fill="#555">Bar lengths use a logarithmic scale so rare and frequent candidate types fit in the same chart.</text>
+</svg>
