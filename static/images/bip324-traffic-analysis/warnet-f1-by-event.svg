@@ -1,40 +1,347 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520" role="img" aria-labelledby="title desc">
-  <title id="title">Warnet F1 score by event and analysis view</title>
-  <desc id="desc">Grouped horizontal bar chart comparing F1 scores for all flows, Bitcoin port filter, and BIP324 handshake filter.</desc>
-  <rect width="980" height="520" fill="#ffffff"/>
-  <text x="40" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#222">Warnet F1 score by event</text>
-  <text x="40" y="64" font-family="Arial, sans-serif" font-size="14" fill="#555">Higher is better. Values come from the controlled Warnet run with Bitcoin Core log ground truth.</text>
-  <rect x="40" y="84" width="14" height="14" fill="#4c78a8"/><text x="62" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">all flows</text>
-  <rect x="150" y="84" width="14" height="14" fill="#f58518"/><text x="172" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">bitcoin port</text>
-  <rect x="270" y="84" width="14" height="14" fill="#54a24b"/><text x="292" y="96" font-family="Arial, sans-serif" font-size="13" fill="#333">BIP324 handshake filter</text>
-  <g font-family="Arial, sans-serif" font-size="13" fill="#333">
-    <text x="40" y="143">BIP324 handshake</text>
-    <rect x="230" y="126" width="360" height="12" fill="#4c78a8"/><text x="600" y="137">1.00</text>
-    <rect x="230" y="144" width="360" height="12" fill="#f58518"/><text x="600" y="155">1.00</text>
-    <rect x="230" y="162" width="360" height="12" fill="#54a24b"/><text x="600" y="173">1.00</text>
-
-    <text x="40" y="213">Block arrival</text>
-    <rect x="230" y="196" width="60" height="12" fill="#4c78a8"/><text x="300" y="207">0.17</text>
-    <rect x="230" y="214" width="78" height="12" fill="#f58518"/><text x="318" y="225">0.22</text>
-    <rect x="230" y="232" width="78" height="12" fill="#54a24b"/><text x="318" y="243">0.22</text>
-
-    <text x="40" y="283">Compact block</text>
-    <rect x="230" y="266" width="75" height="12" fill="#4c78a8"/><text x="315" y="277">0.21</text>
-    <rect x="230" y="284" width="77" height="12" fill="#f58518"/><text x="317" y="295">0.21</text>
-    <rect x="230" y="302" width="77" height="12" fill="#54a24b"/><text x="317" y="313">0.21</text>
-
-    <text x="40" y="353">Large transaction</text>
-    <rect x="230" y="336" width="258" height="12" fill="#4c78a8"/><text x="498" y="347">0.72</text>
-    <rect x="230" y="354" width="264" height="12" fill="#f58518"/><text x="504" y="365">0.73</text>
-    <rect x="230" y="372" width="264" height="12" fill="#54a24b"/><text x="504" y="383">0.73</text>
-
-    <text x="40" y="423">Address response</text>
-    <rect x="230" y="406" width="102" height="12" fill="#4c78a8"/><text x="342" y="417">0.28</text>
-    <rect x="230" y="424" width="102" height="12" fill="#f58518"/><text x="342" y="435">0.28</text>
-    <rect x="230" y="442" width="102" height="12" fill="#54a24b"/><text x="342" y="453">0.28</text>
-  </g>
-  <line x1="230" y1="475" x2="590" y2="475" stroke="#ccc"/>
-  <text x="226" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">0</text>
-  <text x="405" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">0.5</text>
-  <text x="582" y="496" font-family="Arial, sans-serif" font-size="12" fill="#666">1.0</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1480" viewBox="0 0 1280 1480" role="img" aria-labelledby="title desc">
+<title id="title">Warnet confusion matrices for notebook events</title>
+<desc id="desc">Confusion-style matrices for events shown in analyze_warnet.ipynb. Percentages use evaluated options equal to TP plus FP plus FN.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="28" y="36" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">Warnet confusion matrices</text>
+<text x="28" y="63" font-family="Inter, Arial, sans-serif" font-size="14" fill="#4b5563">Eventos do analyze_warnet.ipynb. Opcoes = TP + FP + FN; certas = TP; TN nao e calculado.</text>
+<rect x="28" y="82" width="14" height="14" rx="2" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="48" y="94" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">TP</text>
+<rect x="114" y="82" width="14" height="14" rx="2" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="134" y="94" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">FP</text>
+<rect x="200" y="82" width="14" height="14" rx="2" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="220" y="94" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">FN</text>
+<rect x="286" y="82" width="14" height="14" rx="2" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="306" y="94" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">TN n/a</text>
+<rect x="20" y="108" width="1240" height="24" fill="#f3f4f6" stroke="#d1d5db"/>
+<text x="28" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Event</text>
+<text x="235" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">View</text>
+<text x="362" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Pred</text>
+<text x="420" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Log</text>
+<text x="478" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Opcoes</text>
+<text x="548" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Certas</text>
+<text x="615" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">% certas</text>
+<text x="705" y="125" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" fill="#374151">Matriz</text>
+<rect x="20" y="132" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="28" y="167" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">BIP324 handshake</text>
+<text x="235" y="167" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="167" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13</text>
+<text x="435" y="167" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="503" y="167" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13</text>
+<text x="568" y="167" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="640" y="167" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">92.3%</text>
+<rect x="705" y="140" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="155" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 92.3% (12)</text>
+<rect x="833" y="140" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="155" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 7.7% (1)</text>
+<rect x="705" y="163" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="178" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="163" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="178" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="194" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="229" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="229" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="435" y="229" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="503" y="229" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="568" y="229" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="640" y="229" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">100.0%</text>
+<rect x="705" y="202" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="217" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 100.0% (12)</text>
+<rect x="833" y="202" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="217" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (0)</text>
+<rect x="705" y="225" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="240" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="225" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="240" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="256" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="291" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="291" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13</text>
+<text x="435" y="291" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="503" y="291" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13</text>
+<text x="568" y="291" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12</text>
+<text x="640" y="291" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">92.3%</text>
+<rect x="705" y="264" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="279" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 92.3% (12)</text>
+<rect x="833" y="264" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="279" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 7.7% (1)</text>
+<rect x="705" y="287" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="302" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="287" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="302" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="318" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="28" y="353" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">Block arrival</text>
+<text x="235" y="353" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="353" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">5647</text>
+<text x="435" y="353" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1912</text>
+<text x="503" y="353" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">7295</text>
+<text x="568" y="353" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">264</text>
+<text x="640" y="353" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3.6%</text>
+<rect x="705" y="326" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="341" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 3.6% (264)</text>
+<rect x="833" y="326" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="341" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 73.8% (5383)</text>
+<rect x="705" y="349" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="364" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 22.6% (1648)</text>
+<rect x="833" y="349" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="364" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="380" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="415" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="415" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">334</text>
+<text x="435" y="415" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1912</text>
+<text x="503" y="415" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1982</text>
+<text x="568" y="415" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">264</text>
+<text x="640" y="415" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13.3%</text>
+<rect x="705" y="388" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="403" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 13.3% (264)</text>
+<rect x="833" y="388" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="403" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 3.5% (70)</text>
+<rect x="705" y="411" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="426" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 83.1% (1648)</text>
+<rect x="833" y="411" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="426" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="442" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="477" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="477" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">334</text>
+<text x="435" y="477" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1912</text>
+<text x="503" y="477" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1982</text>
+<text x="568" y="477" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">264</text>
+<text x="640" y="477" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">13.3%</text>
+<rect x="705" y="450" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="465" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 13.3% (264)</text>
+<rect x="833" y="450" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="465" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 3.5% (70)</text>
+<rect x="705" y="473" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="488" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 83.1% (1648)</text>
+<rect x="833" y="473" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="488" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="504" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="28" y="539" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">Compact block arrival</text>
+<text x="235" y="539" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="539" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2931</text>
+<text x="435" y="539" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1000</text>
+<text x="503" y="539" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3629</text>
+<text x="568" y="539" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">302</text>
+<text x="640" y="539" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">8.3%</text>
+<rect x="705" y="512" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="527" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 8.3% (302)</text>
+<rect x="833" y="512" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="527" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 72.4% (2629)</text>
+<rect x="705" y="535" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="550" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 19.2% (698)</text>
+<rect x="833" y="535" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="550" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="566" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="601" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="601" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1733</text>
+<text x="435" y="601" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1000</text>
+<text x="503" y="601" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2431</text>
+<text x="568" y="601" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">302</text>
+<text x="640" y="601" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12.4%</text>
+<rect x="705" y="574" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="589" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 12.4% (302)</text>
+<rect x="833" y="574" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="589" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 58.9% (1431)</text>
+<rect x="705" y="597" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="612" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 28.7% (698)</text>
+<rect x="833" y="597" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="612" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="628" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="663" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="663" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1734</text>
+<text x="435" y="663" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">1000</text>
+<text x="503" y="663" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2432</text>
+<text x="568" y="663" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">302</text>
+<text x="640" y="663" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">12.4%</text>
+<rect x="705" y="636" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="651" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 12.4% (302)</text>
+<rect x="833" y="636" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="651" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 58.9% (1432)</text>
+<rect x="705" y="659" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="674" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 28.7% (698)</text>
+<rect x="833" y="659" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="674" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="690" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="28" y="725" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">Large transaction</text>
+<text x="235" y="725" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="725" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3065</text>
+<text x="435" y="725" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">242</text>
+<text x="503" y="725" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3118</text>
+<text x="568" y="725" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">189</text>
+<text x="640" y="725" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">6.1%</text>
+<rect x="705" y="698" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="713" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 6.1% (189)</text>
+<rect x="833" y="698" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="713" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 92.2% (2876)</text>
+<rect x="705" y="721" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="736" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 1.7% (53)</text>
+<rect x="833" y="721" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="736" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="752" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="787" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="787" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">738</text>
+<text x="435" y="787" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">242</text>
+<text x="503" y="787" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">791</text>
+<text x="568" y="787" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">189</text>
+<text x="640" y="787" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">23.9%</text>
+<rect x="705" y="760" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="775" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 23.9% (189)</text>
+<rect x="833" y="760" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="775" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 69.4% (549)</text>
+<rect x="705" y="783" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="798" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 6.7% (53)</text>
+<rect x="833" y="783" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="798" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="814" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="849" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="849" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">738</text>
+<text x="435" y="849" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">242</text>
+<text x="503" y="849" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">791</text>
+<text x="568" y="849" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">189</text>
+<text x="640" y="849" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">23.9%</text>
+<rect x="705" y="822" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="837" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 23.9% (189)</text>
+<rect x="833" y="822" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="837" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 69.4% (549)</text>
+<rect x="705" y="845" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="860" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 6.7% (53)</text>
+<rect x="833" y="845" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="860" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="876" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="28" y="911" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">INV announcement</text>
+<text x="235" y="911" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="911" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">234</text>
+<text x="435" y="911" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3652</text>
+<text x="503" y="911" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3679</text>
+<text x="568" y="911" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">207</text>
+<text x="640" y="911" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">5.6%</text>
+<rect x="705" y="884" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="899" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 5.6% (207)</text>
+<rect x="833" y="884" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="899" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.7% (27)</text>
+<rect x="705" y="907" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="922" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 93.6% (3445)</text>
+<rect x="833" y="907" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="922" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="938" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="973" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="973" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">207</text>
+<text x="435" y="973" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3652</text>
+<text x="503" y="973" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3652</text>
+<text x="568" y="973" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">207</text>
+<text x="640" y="973" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">5.7%</text>
+<rect x="705" y="946" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="961" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 5.7% (207)</text>
+<rect x="833" y="946" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="961" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (0)</text>
+<rect x="705" y="969" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="984" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 94.3% (3445)</text>
+<rect x="833" y="969" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="984" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1000" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="1035" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="1035" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">208</text>
+<text x="435" y="1035" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3652</text>
+<text x="503" y="1035" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">3653</text>
+<text x="568" y="1035" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">207</text>
+<text x="640" y="1035" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">5.7%</text>
+<rect x="705" y="1008" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1023" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 5.7% (207)</text>
+<rect x="833" y="1008" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1023" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (1)</text>
+<rect x="705" y="1031" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1046" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 94.3% (3445)</text>
+<rect x="833" y="1031" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1046" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1062" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="28" y="1097" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">Transaction relay exchange</text>
+<text x="235" y="1097" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="1097" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="435" y="1097" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="503" y="1097" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="568" y="1097" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="640" y="1097" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2.5%</text>
+<rect x="705" y="1070" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1085" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 2.5% (54)</text>
+<rect x="833" y="1070" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1085" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (0)</text>
+<rect x="705" y="1093" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1108" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 97.5% (2118)</text>
+<rect x="833" y="1093" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1108" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1124" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="1159" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="1159" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="435" y="1159" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="503" y="1159" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="568" y="1159" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="640" y="1159" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2.5%</text>
+<rect x="705" y="1132" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1147" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 2.5% (54)</text>
+<rect x="833" y="1132" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1147" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (0)</text>
+<rect x="705" y="1155" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1170" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 97.5% (2118)</text>
+<rect x="833" y="1155" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1170" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1186" width="1240" height="62" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="235" y="1221" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="1221" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="435" y="1221" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="503" y="1221" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2172</text>
+<text x="568" y="1221" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">54</text>
+<text x="640" y="1221" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">2.5%</text>
+<rect x="705" y="1194" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1209" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 2.5% (54)</text>
+<rect x="833" y="1194" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1209" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 0.0% (0)</text>
+<rect x="705" y="1217" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1232" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 97.5% (2118)</text>
+<rect x="833" y="1217" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1232" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1248" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="28" y="1283" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#111827">Address response</text>
+<text x="235" y="1283" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">All flows</text>
+<text x="379" y="1283" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">21</text>
+<text x="435" y="1283" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="503" y="1283" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">21</text>
+<text x="568" y="1283" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="640" y="1283" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0.0%</text>
+<rect x="705" y="1256" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1271" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 0.0% (0)</text>
+<rect x="833" y="1256" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1271" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 100.0% (21)</text>
+<rect x="705" y="1279" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1294" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="1279" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1294" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1310" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="1345" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">Bitcoin port</text>
+<text x="379" y="1345" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">19</text>
+<text x="435" y="1345" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="503" y="1345" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">19</text>
+<text x="568" y="1345" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="640" y="1345" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0.0%</text>
+<rect x="705" y="1318" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1333" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 0.0% (0)</text>
+<rect x="833" y="1318" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1333" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 100.0% (19)</text>
+<rect x="705" y="1341" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1356" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="1341" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1356" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<rect x="20" y="1372" width="1240" height="62" fill="#ffffff" stroke="#e5e7eb"/>
+<text x="235" y="1407" font-family="Inter, Arial, sans-serif" font-size="12" fill="#374151">BIP324 filter</text>
+<text x="379" y="1407" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">19</text>
+<text x="435" y="1407" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="503" y="1407" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">19</text>
+<text x="568" y="1407" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0</text>
+<text x="640" y="1407" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827">0.0%</text>
+<rect x="705" y="1380" width="126" height="21" rx="3" fill="#c8ead2" stroke="#d1d5db"/>
+<text x="768.0" y="1395" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TP 0.0% (0)</text>
+<rect x="833" y="1380" width="126" height="21" rx="3" fill="#ffd6d6" stroke="#d1d5db"/>
+<text x="896.0" y="1395" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FP 100.0% (19)</text>
+<rect x="705" y="1403" width="126" height="21" rx="3" fill="#ffe7b0" stroke="#d1d5db"/>
+<text x="768.0" y="1418" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">FN 0.0% (0)</text>
+<rect x="833" y="1403" width="126" height="21" rx="3" fill="#e5e7eb" stroke="#d1d5db"/>
+<text x="896.0" y="1418" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#111827">TN n/a</text>
+<text x="28" y="1460" font-family="Inter, Arial, sans-serif" font-size="12" fill="#6b7280">Fonte: analyze_warnet.ipynb / notebook_detection_scope_comparison.csv</text>
 </svg>

@@ -1,121 +1,196 @@
 +++
-title = "Finding Bitcoin P2P v2 Traffic After BIP324"
-date = 2026-06-10
-description = "A Warnet-controlled experiment and b10c mainnet PCAP analysis for studying what a passive observer can still infer from Bitcoin P2P v2 traffic."
+title = "Passive Traffic Analysis of Bitcoin P2P v2"
+date = 2026-06-23
+description = "A Warnet-controlled experiment and b10c mainnet PCAP analysis for studying passive metadata signals in Bitcoin P2P v2 traffic."
 [taxonomies]
 tags = ["bitcoin", "bip324", "traffic-analysis", "warnet"]
 +++
 
-BIP324 encrypts Bitcoin P2P v2 traffic, but encryption does not hide packet sizes, timing, flow direction, or the ports involved in a connection. I wanted to understand what a passive observer can still infer from those metadata signals.
+<style>
+table {
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-collapse: collapse;
+}
+
+thead {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+th,
+td {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  padding: 0.45rem 0.6rem;
+}
+</style>
+
+BIP324 encrypts Bitcoin P2P v2 traffic and hides the protocol's internal packet length field, but a network observer can still see TCP/IP packet sizes, timing, flow direction, connection endpoints, and the ports involved in a connection. I wanted to understand what a passive observer can still infer from those metadata signals.
 
 I worked on this from two directions:
 
-1. A controlled **BIP324 traffic lab** built with Warnet.
-2. A passive **BIP324 traffic analysis pipeline** that can be applied both to the lab output and to mainnet PCAPs.
+1. A controlled **BIP324 traffic lab** built with Warnet: [`victorandre957/bip324-traffic-lab`](https://github.com/victorandre957/bip324-traffic-lab).
+2. A passive **BIP324 traffic analysis pipeline** that can be applied both to the lab output and to mainnet PCAPs: [`victorandre957/bip324-traffic-analysis`](https://github.com/victorandre957/bip324-traffic-analysis).
 
-This post summarizes what I have found so far, separating controlled Warnet results from exploratory mainnet results, and explains why the findings are relevant to a separate Bitcoin Core feature I have been experimenting with: opt-in randomization of the local P2P listening port.
+This post summarizes the current test results, separating controlled Warnet data from exploratory mainnet candidates, and connects them to an experiment with opt-in randomization of the local P2P listening port.
 
 ## Data sources
 
-There are two different kinds of data in this post.
+I use the Warnet lab for evaluated results and the b10c mainnet PCAPs only as candidate data.
 
-The first source is my **Warnet lab data**. This is controlled data. I know which pods are Bitcoin nodes, which pods are background traffic, when nodes join, when blocks are mined, when transactions are relayed, and which traffic is HTTP, HTTPS/TLS 1.3, Tor, BitTorrent, or UDP streaming. Because I also collect Bitcoin Core logs and an IP map, I can measure true positives, false positives, and false negatives.
+The Warnet run has Bitcoin Core logs, an IP map, packet capture, node roles, and the simulation seed. That lets me compare passive detections against a separate log-derived reference. The detector itself only reads the PCAP; logs are used after detection for validation.
 
-The second source is **mainnet PCAP data shared by b10c** from his demo nodes. Those captures are useful because they are longer and come from real mainnet behavior, but I do not have matching Bitcoin Core logs for them. That means I cannot calculate error rates for the b10c data. I can only report passive candidates found by the same heuristics.
+The mainnet PCAPs do not have matching logs in this dataset. I do not use them for precision, recall, or confusion matrices.
 
-The distinction matters: Warnet results are evaluated results; b10c mainnet results are exploratory candidate counts.
+These are test results from a small controlled setup. They are useful for checking whether the passive features are plausible, not for making broad claims about the public Bitcoin network.
 
-## The controlled lab
+## What the detector sees
 
-The lab exists because mainnet captures are hard to validate. If a detector finds a burst of bytes and calls it a block relay, the only way to know whether it was right is to have independent ground truth.
+The detector does not decrypt BIP324 and does not read Bitcoin message types. It builds a passive timeline per TCP flow from packet size, timestamp, direction, burst shape, early handshake structure, and the position of later bursts inside the connection.
 
-In the Warnet setup I can control and record that ground truth:
+The current version also exports notebook evidence tables: per-flow timeline buckets, event evidence, false-positive rows, and validation rows. That made the analysis easier to inspect than the earlier size-threshold-only version.
 
-- which pods are Bitcoin nodes;
-- which pods are background traffic;
-- when Bitcoin nodes start;
-- when delayed Bitcoin nodes join;
-- when blocks are mined;
-- when transactions are relayed;
-- which traffic belongs to HTTP, HTTPS/TLS 1.3, Tor, BitTorrent, or UDP streaming;
-- the seed used to reproduce generated payloads and choices.
+## Evaluation rules
 
-The startup order is intentional: the packet sniffer starts first, background traffic starts next, and only then do the Bitcoin nodes start. This gives the passive observer the same kind of view an ISP-like observer would have, while still keeping enough labels to evaluate the analysis later.
+The Warnet evaluation is event matching, not packet decryption. The rules below describe what the passive detector looks for in the PCAP; the logs are only the evaluation reference.
 
-The current run has five Bitcoin nodes. Three nodes form the initial network. Two additional nodes join halfway through the simulation and connect to the initial nodes. The analysis sees 13 BIP324 handshake events in this run. That is expected for the observed logs: it is not a full five-node mesh, and the log events represent observed handshake attempts rather than a simple count of unique graph edges.
+These heuristics are still being improved, so the numbers below should be read as the current state of the experiment, not as final classifier performance. The detector is strictly passive: it only uses packet-capture metadata. It does not run another Bitcoin node to observe the network, decrypt BIP324, read message types, or use Warnet profiles/logs to decide detections.
 
-## What the detector is allowed to see
+| Label | Meaning |
+| --- | --- |
+| `TP` | predicted event matched a log event |
+| `FP` | predicted event had no matching log event |
+| `FN` | log event had no matching prediction |
+| `TN` | not computed; the current evaluator does not enumerate every negative window or negative flow |
 
-The passive detector does not decrypt BIP324 traffic and does not inspect Bitcoin messages directly. It only uses metadata:
+The percentages in the charts use `TP + FP + FN` as the denominator. `TN` is shown as unavailable instead of being inferred.
 
-- packet size;
-- timestamp;
-- direction inside a TCP flow;
-- early flow structure;
-- per-second byte bursts;
-- whether a flow endpoint uses the expected Bitcoin port in a given scenario.
+| Data | Passive rule used in this test |
+| --- | --- |
+| BIP324 handshake | early encrypted-looking TCP flow, BIP324-sized initial flight, no cleartext hint, high entropy, bidirectional payload |
+| Block arrival | large encrypted burst with timing support from nearby block-like activity |
+| Compact block arrival | compact-block-sized burst in a post-handshake flow |
+| Block propagation wave | block-like activity appearing close together across multiple BIP324-looking flows |
+| Large transaction | post-handshake burst above the calibrated large-transaction threshold |
+| INV announcement | small post-handshake burst shaped like inventory metadata |
+| Request-like burst | small opposite-direction burst after inventory-like activity |
+| TX-like burst | transaction-sized burst in the transaction-relay window |
+| Transaction relay exchange | inventory-like burst, request-like burst, then tx-like burst in the same flow |
 
-For Warnet, the analysis can compare predictions against Bitcoin Core logs. That allows precision, recall, false positives, and false negatives to be measured. For the b10c mainnet PCAPs, there are no matching node logs in my dataset, so the analysis can only report candidates. Those mainnet numbers are useful for exploration, but they are not accuracy metrics.
+## The three filters
 
-## The three analysis views
+I compare each event type with three filters:
 
-I compare each event type in three ways:
-
-1. **All flows**: run the event heuristic on every scoped flow.
-2. **Bitcoin port**: run the event heuristic only on flows where one endpoint uses the expected Bitcoin port.
-3. **BIP324 handshake filter**: first identify BIP324-like connections, then run the event heuristics only inside those connections.
+1. **No filter**: run the event heuristic on every scoped flow.
+2. **filter by bitcoin port**: run the event heuristic only on flows where one endpoint uses the expected Bitcoin port.
+3. **filter by handshake**: first identify BIP324-like connections, then run the event heuristics only inside those connections.
 
 For Warnet/regtest, the Bitcoin port is `18444`. For mainnet, it is `8333`.
 
-This comparison matters because a default port is a very strong shortcut. If an observer can simply filter for `8333`, the search problem is much smaller before any traffic-analysis heuristic is needed.
+This comparison matters because a default port is a cheap shortcut. If an observer can filter for `8333`, the search problem becomes smaller before any traffic-analysis heuristic is applied.
 
 ## Warnet results
 
-The strongest signal so far is the BIP324 handshake. In the current Warnet run, it is detected correctly across all three views.
+The tables below use `TP + FP + FN` as the measured option count. They include the three filters: no filter, filter by bitcoin port, and filter by handshake.
 
-![Warnet F1 score by event and analysis view](/images/bip324-traffic-analysis/warnet-f1-by-event.svg)
+### Handshake
 
-The handshake detector is looking for early bidirectional encrypted-looking payloads with BIP324-compatible initial sizes and no cleartext protocol hints. It is not using the Bitcoin port as a requirement. That is important: the port makes discovery easier, but the handshake itself also has a visible metadata shape.
+| Event | Filter | Options | Correct | TP | FP | FN |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| BIP324 handshake | No filter | 13 | 12 (92.3%) | 12 (92.3%) | 1 (7.7%) | 0 (0.0%) |
+| BIP324 handshake | filter by bitcoin port | 12 | 12 (100.0%) | 12 (100.0%) | 0 (0.0%) | 0 (0.0%) |
+| BIP324 handshake | filter by handshake | 13 | 12 (92.3%) | 12 (92.3%) | 1 (7.7%) | 0 (0.0%) |
 
-Block arrival remains visible, but it is much noisier than the handshake detector. The current detector uses the average incoming block size seen in the logs as a run-specific size reference and then checks whether candidate bursts align with the observed block cadence. In this run, filtering by Bitcoin port or by the BIP324 handshake improves the block-arrival F1 score because it removes many false positives while keeping the same number of true positives.
+The single handshake error is the same case shown in the notebook: a Tor/noise flow matched enough early-flow BIP324 checks to be counted as a false positive. The port filter avoids it because the flow is not on the Bitcoin port.
 
-Compact blocks, large transactions, and address responses are weaker. They produce signals, but they are noisier and less reliable than the handshake detector.
+### Blocks
 
-## False positives
+| Event | Filter | Options | Correct | TP | FP | FN |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Block arrival | No filter | 7295 | 264 (3.6%) | 264 (3.6%) | 5383 (73.8%) | 1648 (22.6%) |
+| Block arrival | filter by bitcoin port | 1982 | 264 (13.3%) | 264 (13.3%) | 70 (3.5%) | 1648 (83.1%) |
+| Block arrival | filter by handshake | 1982 | 264 (13.3%) | 264 (13.3%) | 70 (3.5%) | 1648 (83.1%) |
+| Compact block arrival | No filter | 3629 | 302 (8.3%) | 302 (8.3%) | 2629 (72.4%) | 698 (19.2%) |
+| Compact block arrival | filter by bitcoin port | 2431 | 302 (12.4%) | 302 (12.4%) | 1431 (58.9%) | 698 (28.7%) |
+| Compact block arrival | filter by handshake | 2432 | 302 (12.4%) | 302 (12.4%) | 1432 (58.9%) | 698 (28.7%) |
+| Block propagation wave | No filter | 2201 | 1 (0.0%) | 1 (0.0%) | 289 (13.1%) | 1911 (86.8%) |
+| Block propagation wave | filter by bitcoin port | 2022 | 121 (6.0%) | 121 (6.0%) | 110 (5.4%) | 1791 (88.6%) |
+| Block propagation wave | filter by handshake | 2023 | 120 (5.9%) | 120 (5.9%) | 111 (5.5%) | 1792 (88.6%) |
 
-The false-positive pattern is as important as the raw score.
+### Transactions
 
-![Warnet false positives by event and analysis view](/images/bip324-traffic-analysis/warnet-false-positives.svg)
+| Event | Filter | Options | Correct | TP | FP | FN |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Large transaction | No filter | 3118 | 189 (6.1%) | 189 (6.1%) | 2876 (92.2%) | 53 (1.7%) |
+| Large transaction | filter by bitcoin port | 791 | 189 (23.9%) | 189 (23.9%) | 549 (69.4%) | 53 (6.7%) |
+| Large transaction | filter by handshake | 791 | 189 (23.9%) | 189 (23.9%) | 549 (69.4%) | 53 (6.7%) |
+| INV announcement | No filter | 3679 | 207 (5.6%) | 207 (5.6%) | 27 (0.7%) | 3445 (93.6%) |
+| INV announcement | filter by bitcoin port | 3652 | 207 (5.7%) | 207 (5.7%) | 0 (0.0%) | 3445 (94.3%) |
+| INV announcement | filter by handshake | 3653 | 207 (5.7%) | 207 (5.7%) | 1 (0.0%) | 3445 (94.3%) |
+| Request-like burst | No filter | 2692 | 54 (2.0%) | 54 (2.0%) | 0 (0.0%) | 2638 (98.0%) |
+| Request-like burst | filter by bitcoin port | 2692 | 54 (2.0%) | 54 (2.0%) | 0 (0.0%) | 2638 (98.0%) |
+| Request-like burst | filter by handshake | 2692 | 54 (2.0%) | 54 (2.0%) | 0 (0.0%) | 2638 (98.0%) |
+| TX-like burst | No filter | 1646 | 54 (3.3%) | 54 (3.3%) | 0 (0.0%) | 1592 (96.7%) |
+| TX-like burst | filter by bitcoin port | 1646 | 54 (3.3%) | 54 (3.3%) | 0 (0.0%) | 1592 (96.7%) |
+| TX-like burst | filter by handshake | 1646 | 54 (3.3%) | 54 (3.3%) | 0 (0.0%) | 1592 (96.7%) |
+| Transaction relay exchange | No filter | 2172 | 54 (2.5%) | 54 (2.5%) | 0 (0.0%) | 2118 (97.5%) |
+| Transaction relay exchange | filter by bitcoin port | 2172 | 54 (2.5%) | 54 (2.5%) | 0 (0.0%) | 2118 (97.5%) |
+| Transaction relay exchange | filter by handshake | 2172 | 54 (2.5%) | 54 (2.5%) | 0 (0.0%) | 2118 (97.5%) |
 
-For block arrival, filtering by Bitcoin port cuts false positives from 1710 to 831 in this run. The BIP324-handshake filter gives the same result. That is still noisy, but it is better than evaluating all flows.
+I tested an address-response heuristic too, but it is not included here as a usable result. In this Warnet run it had zero matching `addr`/`addrv2` log events and only produced false positives, so I treat it as a discarded rule rather than a detector.
 
-For address responses, the result is identical in all three views. This was surprising at first, but it makes sense after looking at the heuristic. The address-response detector is trying to infer `addr` or `addrv2` responses from small early-session byte bursts. In this run, those candidates were already inside Bitcoin/BIP324 flows. The confusion is not mainly coming from HTTP, HTTPS, Tor, BitTorrent, or UDP noise. It is coming from other encrypted Bitcoin traffic that has a similar small-burst shape.
+The matrices below show the filter by handshake view as a 2x2 layout. The evaluator does not enumerate true-negative windows, so the `TN` cell is shown as `0`.
 
-That is a useful negative result: address-response detection is currently exploratory, not reliable.
+![Warnet BIP324 handshake matrix](../../images/bip324-traffic-analysis/warnet-confusion-handshake.svg)
+
+![Warnet block arrival matrix](../../images/bip324-traffic-analysis/warnet-confusion-block-arrival.svg)
+
+![Warnet compact block arrival matrix](../../images/bip324-traffic-analysis/warnet-confusion-compact-block-arrival.svg)
+
+![Warnet block propagation wave matrix](../../images/bip324-traffic-analysis/warnet-confusion-block-propagation-wave.svg)
+
+![Warnet large transaction matrix](../../images/bip324-traffic-analysis/warnet-confusion-large-transaction.svg)
+
+![Warnet INV announcement matrix](../../images/bip324-traffic-analysis/warnet-confusion-inv-announcement.svg)
+
+![Warnet request-like burst matrix](../../images/bip324-traffic-analysis/warnet-confusion-request-like-burst.svg)
+
+![Warnet TX-like burst matrix](../../images/bip324-traffic-analysis/warnet-confusion-tx-like-burst.svg)
+
+![Warnet transaction relay exchange matrix](../../images/bip324-traffic-analysis/warnet-confusion-transaction-relay-exchange.svg)
+
+The handshake case is still the easiest signal to inspect in this run, but it is not perfect: one encrypted noise flow matched enough early-flow checks to become a false positive. The notebook shows that case directly.
 
 ## Search-space reduction
 
-Filtering by port or by detected BIP324 handshakes greatly reduces the number of flows that later heuristics need to inspect.
+Filtering by port or by detected BIP324 handshakes changes how many flows the later event rules inspect. The chart uses absolute flow counts on a log scale because the all-flow case is much larger than the filtered cases.
 
-![Warnet flow scope comparison](/images/bip324-traffic-analysis/warnet-flow-scope.svg)
+![Warnet flow scope comparison](../../images/bip324-traffic-analysis/warnet-flow-scope.svg)
 
-In this Warnet run, the all-flow view contains 767 flows. The Bitcoin-port view contains 25 flows. The BIP324-handshake-filtered view also contains 25 candidate flows. In other words, in this controlled capture, filtering by the known Bitcoin port and filtering by the detected BIP324 handshake produce practically the same flow set.
-
-This is exactly why the default port matters. Even if encryption hides message contents, a stable and well-known listening port gives a passive observer a cheap first filter that reaches almost the same place as a more protocol-specific handshake detector. If the port is randomized, an observer loses that cheap first step and has to rely more directly on metadata heuristics such as the BIP324 handshake shape.
+This is why the default port matters in the experiment. Even when message contents are encrypted, a stable listening port gives a passive observer a cheap first filter. Randomizing the listening port would remove that shortcut for inbound discovery, but it would not remove the metadata signals themselves.
 
 ## b10c mainnet PCAPs
 
-I also applied the same passive methodology to two longer mainnet captures shared by b10c. These captures do not include Bitcoin Core logs in my analysis dataset, so there is no ground truth for true positives or false positives. The chart below should be read as candidate volume, not accuracy.
+I also applied the same passive methodology to mainnet captures shared by b10c. These rows are candidate counts only. There are no matching Bitcoin Core logs in this dataset, so the table does not say whether a candidate is right or wrong.
 
-![Mainnet passive candidate counts](/images/bip324-traffic-analysis/mainnet-candidate-counts.svg)
+| Capture | Filter | TCP flows | Handshake candidates | Passive candidates | Handshake | Block | Compact block | Large tx |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| bnoc-111-hal | No filter | 215433 | 456 | 159293 | 456 | 51 | 1043 | 19635 |
+| bnoc-111-hal | filter by bitcoin port | 215433 | 456 | 159293 | 456 | 51 | 1043 | 19635 |
+| bnoc-111-hal | filter by handshake | 215433 | 456 | 117789 | 456 | 2 | 860 | 14208 |
+| bnoc-111-len | No filter | 168389 | 400 | 146651 | 400 | 64 | 1083 | 19384 |
+| bnoc-111-len | filter by bitcoin port | 168389 | 400 | 146651 | 400 | 64 | 1083 | 19384 |
+| bnoc-111-len | filter by handshake | 168389 | 400 | 107245 | 400 | 19 | 685 | 12109 |
 
-In these captures, the Bitcoin-port-filtered view is identical to the all-flow view. I interpret this as a sign that the exported PCAPs are already heavily scoped around Bitcoin-port traffic. In that setup, filtering on `8333` cannot improve the result because the capture itself has already removed most of the unrelated traffic.
+The `No filter` and `filter by bitcoin port` rows are identical here because these captures are already scoped around Bitcoin-port traffic. The handshake filter reduces later candidate volume, but without logs I treat that only as a candidate reduction, not as better accuracy.
 
-Even with that limitation, the same pattern appears: handshake candidates are much more interpretable than the other event types. Block candidates are rare, while address-response and large-transaction candidates are very frequent and need stronger validation before they can support firm claims about mainnet behavior.
+## Why randomized P2P ports matter here
 
-## How this relates to randomized P2P ports
+The randomized-port feature I have been experimenting with is opt-in. I currently have two alternative implementations in my own Bitcoin Core fork, not upstream Bitcoin Core:
 
-The randomized-port feature I have been experimenting with is opt-in. The idea is:
+- [victorandre957/bitcoin#3](https://github.com/victorandre957/bitcoin/pull/3): dynamic randomization, where the node changes the listening port for each new connection and advertises the current port.
+- [victorandre957/bitcoin#2](https://github.com/victorandre957/bitcoin/pull/2): startup randomization, where the node chooses a randomized port and persists it across restarts.
+
+The final design would likely be one of these approaches, not both. The startup-randomization version is the simpler model:
 
 - if the user passes `-port`, Bitcoin Core keeps using that explicit port;
 - if `-randomizep2pport=1` is enabled and no port was provided, the node chooses a port in `49152-65534`;
@@ -123,21 +198,21 @@ The randomized-port feature I have been experimenting with is opt-in. The idea i
 - the port is only saved after the node successfully binds;
 - remote peers using default ports remain valid.
 
-This does not make BIP324 traffic impossible to detect. The Warnet results show that the handshake can still be detected from metadata without relying on the port.
+Using a non-default listening port can make passive discovery harder because it removes the simplest first-stage filter: "look for traffic involving port `8333`." That does not make BIP324 traffic disappear from metadata. In this test setup, the handshake heuristic can still find candidates without relying on the port.
 
-But it does remove the easiest classifier: "look for connections involving the default Bitcoin port." That matters because passive traffic analysis is often a pipeline. In the Warnet data, the port filter and the BIP324-handshake filter reduce the dataset to almost the same flow set. The difference is that the port filter is trivial, while the handshake filter requires actual traffic-analysis logic.
+The dynamic version is more complex because the reachable address changes across connections and has to be advertised correctly. The startup version is simpler because it behaves like a stable non-default listening port after first bind. Both versions share an important trade-off: today, peers cannot directly connect to that node only from a DNS seed result, because DNS seeds do not currently carry the randomized per-node port in the way this experiment would need.
 
-In other words, randomized ports do not replace BIP324. They complement it by removing one obvious side channel while BIP324 removes cleartext protocol contents.
+Both options remove a cheap classifier for inbound traffic and listening-node discovery. They do not hide outbound connections to peers that still listen on `8333`, and they do not remove timing or packet-size metadata. In practice, that gives a passive observer two broad choices: use the default-port shortcut when it exists, or rely more heavily on passive flow metadata when it does not.
+
+In other words, randomized ports do not replace BIP324. They may complement it by removing one simple side channel while BIP324 removes cleartext protocol contents.
 
 ## Current takeaways
 
-My current conclusions are:
+My current read is modest:
 
-- BIP324 handshakes are the clearest passive signal in these experiments.
-- Block arrivals are visible, but still noisy; filtering by Bitcoin port or by detected BIP324 handshakes improves the result in the current Warnet run.
-- Compact blocks, large transactions, and address responses need more careful heuristics before they are useful as reliable detectors.
-- In the Warnet data, filtering by Bitcoin port and filtering by detected BIP324 handshakes produce practically the same flow scope.
-- Default Bitcoin ports make passive classification much easier because they provide that scope almost for free.
-- Randomizing the listening port would not defeat traffic analysis by itself, but it would remove a cheap and highly effective first filter.
+- the handshake heuristic is the easiest result to inspect;
+- block and transaction rules are still experimental metadata rules;
+- the newer temporal sequence tables make misses and false positives easier to debug;
+- randomized listening ports would not solve traffic analysis, but they can remove one simple first-stage filter.
 
-The next useful step is to test the same analysis against captures where Bitcoin nodes listen on randomized ports while the sniffer captures all ports, not only `8333` or `18444`. That would measure how much harder the first-stage discovery problem becomes when the port shortcut is removed.
+The next useful test is a capture where Bitcoin nodes listen on randomized ports and the sniffer captures all ports, not only `8333` or `18444`.

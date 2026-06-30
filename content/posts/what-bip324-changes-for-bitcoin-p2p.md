@@ -1,6 +1,6 @@
 +++
 title = "BIP324 in Bitcoin Core"
-date = 2026-06-19
+date = 2026-06-24
 description = "A technical walkthrough of Bitcoin's encrypted P2P v2 transport in Bitcoin Core."
 [taxonomies]
 tags = ["bitcoin", "bip324", "p2p", "bitcoin-core"]
@@ -8,7 +8,15 @@ tags = ["bitcoin", "bip324", "p2p", "bitcoin-core"]
 
 For the last few weeks I have been studying Bitcoin's P2P v2 transport implementation in Bitcoin Core. The protocol is specified in [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki), and the implementation lives mostly in `src/bip324.{h,cpp}` and the `V2Transport` code in `src/net.{h,cpp}`.
 
-This post is a technical breakdown of what BIP324 does, what it deliberately does not do, and how Bitcoin Core wires it into the existing P2P stack.
+This post is a technical walkthrough of what BIP324 does, what it deliberately does not do, and how Bitcoin Core wires it into the existing P2P stack.
+
+## How It Got Here
+
+BIP324 is not the first attempt to encrypt Bitcoin P2P traffic. The older direction started around 2016 with [BIP151](https://github.com/bitcoin/bips/blob/master/bip-0151.mediawiki) for encryption and [BIP150](https://github.com/bitcoin/bips/blob/master/bip-0150.mediawiki) for peer authentication. BIP151 described an `encinit` / `encack` negotiation inside the existing P2P protocol. It was assigned in 2016 and is now closed, with BIP324 listed as its proposed replacement.
+
+BIP324 took a different shape. Instead of negotiating encryption as another message inside the old cleartext transport, it defines a new transport from the first bytes after the TCP connection is opened. That distinction matters because the BIP151-style approach still began with some v1 cleartext structure before upgrading. BIP324 avoids that: a v2 connection does not begin with the old network magic and `version` command. The encryption handshake happens before Bitcoin application messages exist on the connection.
+
+The BIP itself was assigned in 2019 and is authored by Dhruv Mehta, Tim Ruffing, Jonas Schnelli, and Pieter Wuille. The design also changed along the way. For example, earlier BIP324 work used x-only public keys, but the final protocol uses ElligatorSwift encodings so the key exchange bytes themselves do not look like ordinary curve points. Bitcoin Core integrated BIP324 support in v26.0, initially off by default through [bitcoin/bitcoin#28331](https://github.com/bitcoin/bitcoin/pull/28331), and later enabled v2 transport by default in v27.0 through [bitcoin/bitcoin#29347](https://github.com/bitcoin/bitcoin/pull/29347). So the history is roughly: first there was an older encryption-plus-authentication direction for the existing transport, then BIP324 redesigned the transport boundary itself, and finally Bitcoin Core deployed that design through the `NODE_P2P_V2` service bit and the `V2Transport` implementation.
 
 ## The Problem
 
@@ -16,7 +24,7 @@ Bitcoin's original P2P transport, now called v1 transport, sends Bitcoin P2P mes
 
 That creates three problems.
 
-First, a passive observer can read message types and timing directly. The data being relayed by the Bitcoin P2P network is usually public eventually, but the metadata around when a peer first announces something is still sensitive.
+First, a passive observer can read message types and timing directly. The data being relayed by the Bitcoin P2P network is usually public eventually, but the metadata around when a peer first announces something is still sensitive. A broad observer may not need to change any packets to learn useful information: timing and bandwidth patterns can help infer where a transaction or block first appeared in the network.
 
 Second, the bytestream identifies itself as Bitcoin. Deep packet inspection does not need a subtle classifier when the protocol begins with fixed magic bytes and cleartext command names.
 
@@ -39,6 +47,20 @@ The core goals are:
 
 That last point is why BIP324 is not "Bitcoin over TLS". The BIP argues for a custom transport because Bitcoin wants encryption decoupled from identity authentication, a pseudorandom bytestream, secp256k1-based key exchange, packet-based framing, and room for traffic shaping.
 
+## Authentication
+
+The easiest way to misunderstand BIP324 is to read "encrypted" as "authenticated". BIP324 does not tell me who I connected to.
+
+This is intentional. Bitcoin's automatic peer connections are usually not connections to a named identity. A node learns addresses, chooses peers, and checks that they speak the protocol and follow consensus rules. In that setting, there is no global cryptographic identity that BIP324 can authenticate without adding a new identity system to the P2P network.
+
+Manual connections are different. If I run two nodes and deliberately connect one to the other, or if a wallet connects to my own node, then I may care about identity. BIP324 leaves that problem for a separate optional authentication layer. One reason to encrypt all connections first is that, later, authenticated and unauthenticated connections do not need to be distinguishable from the outside.
+
+What it gives me is an encrypted channel with the peer on the other side of the key exchange. After the handshake is established, a third party that merely sits on the network path cannot silently read or modify packets without knowing the session keys. If they try to change ciphertext, garbage AAD, or encrypted packet contents, authentication fails and the connection is dropped. They can still block traffic, delay traffic, or force a disconnect.
+
+The missing piece is identity. If an active attacker is already in the middle during the handshake, BIP324 by itself does not prove that the remote endpoint is the node I intended to reach. The attacker can terminate one encrypted session with me and another encrypted session with the real peer. In that case, both encrypted channels are valid, but I am encrypted to the attacker, not directly to the intended peer.
+
+That is why the session ID exists. The session ID is channel-binding material: it identifies the encrypted channel that was negotiated. If both operators compare the same session ID over an authenticated side channel, a man-in-the-middle would be exposed because the two ends would not have derived the same channel. A future authentication extension could also sign over that session ID. But without that extra comparison or authentication layer, BIP324 provides confidentiality against passive observers and integrity for the established encrypted channel, not cryptographic proof of peer identity.
+
 ## The Handshake
 
 A v2 connection begins immediately after the TCP connection is established. There is no v1 `version` message first.
@@ -50,7 +72,7 @@ The initiator sends:
 
 The responder starts in a detection state. It reads up to the first 16 bytes and compares them with the beginning of a v1 `version` message: network magic followed by `version` padded with zero bytes. If those bytes match, Bitcoin Core treats the connection as v1. If they do not match, the responder treats the connection as v2 and sends its own 64-byte ElligatorSwift public key plus garbage.
 
-Once each side has the other side's 64-byte public key, both compute an ECDH shared secret. The public keys are ElligatorSwift encodings, not ordinary compressed secp256k1 public keys. The point of ElligatorSwift here is fingerprint resistance: the encoded public key is designed to be indistinguishable from random bytes.
+Once each side has the other side's 64-byte public key, both compute an ECDH shared secret. The public keys are ElligatorSwift encodings, not ordinary compressed secp256k1 public keys. The point of ElligatorSwift here is fingerprint resistance: the encoded public key is designed to be indistinguishable from random bytes. Without that, even an otherwise encrypted handshake could still leak a recognizable "this looks like a secp256k1 public key" pattern.
 
 From the shared secret, both sides derive:
 
@@ -59,7 +81,16 @@ From the shared secret, both sides derive:
 - two 16-byte garbage terminators, one per direction;
 - one 32-byte session ID.
 
-Then each side sends its garbage terminator. The receiver reads until it sees the expected 16-byte terminator, with a hard limit of 4095 garbage bytes plus the 16-byte terminator. The garbage is not just skipped and forgotten: it becomes associated authenticated data for the first encrypted packet sent in that direction. That binds the apparently random handshake padding into the cryptographic transcript.
+The ordering is important: the garbage terminator is not sent together with the initial garbage. A peer can only know which terminator to send after it has received the other side's ElligatorSwift public key and derived the shared secret. So the handshake is staged:
+
+1. send ElligatorSwift public key plus random garbage;
+2. receive the peer's ElligatorSwift public key;
+3. derive the shared secret, ciphers, garbage terminators, and session ID;
+4. send the garbage terminator for this direction;
+5. receive the peer's garbage terminator and bind the received garbage as associated authenticated data;
+6. exchange the encrypted version packet.
+
+The receiver reads until it sees the expected 16-byte terminator, with a hard limit of 4095 garbage bytes plus the 16-byte terminator. The garbage is not just skipped and forgotten: it becomes associated authenticated data for the first encrypted packet sent in that direction. That binds the apparently random handshake padding into the cryptographic transcript.
 
 After that, both peers exchange an encrypted version packet. Today Bitcoin Core sends an empty version packet, which means "plain BIP324 v2 transport, no extra transport extensions." The field exists so future versions can negotiate more without changing the outer connection setup.
 
@@ -95,7 +126,9 @@ message_type || payload
 
 For known Bitcoin P2P messages, `message_type` can be a compact 1-byte ID. If no compact ID is used, the content starts with `0x00`, followed by the old 12-byte command-name encoding. This is why v2 can be slightly smaller than v1 for common messages: it does not need to send a 12-byte command string every time.
 
-The packet length is encoded as three little-endian bytes and encrypted with an FSChaCha20 stream cipher. The content is encrypted with FSChaCha20Poly1305, an AEAD construction that also authenticates the packet.
+The packet length is encoded as three little-endian bytes and encrypted with an FSChaCha20 stream cipher. That length field is encrypted, but it is not separately authenticated on its own. It is only effectively checked once the corresponding AEAD-protected packet body is received and verified.
+
+The content is encrypted with FSChaCha20Poly1305, an AEAD construction that authenticates the encrypted packet body.
 
 Bitcoin Core passes `BIP324Cipher::REKEY_INTERVAL` to both forward-secure cipher wrappers. In this checkout that constant is `224`, and the wrappers rekey after that many length-cipher calls or packet AEAD operations. That gives the transport forward secrecy for old packet keys within a long-lived connection: compromising current packet state should not automatically decrypt all past traffic.
 
@@ -103,42 +136,45 @@ Bitcoin Core passes `BIP324Cipher::REKEY_INTERVAL` to both forward-secure cipher
 
 BIP324 also defines decoy packets. A decoy is a real encrypted packet with the `ignore` bit set in the encrypted packet header. The receiver still decrypts and authenticates it, updates cipher state, clears any expected AAD if the packet is valid, and then discards the content instead of passing a `CNetMessage` upward.
 
-Bitcoin Core implements the mechanism in `BIP324Cipher`:
+At the packet layer, the mechanism is simple:
 
-- `BIP324Cipher::Encrypt()` receives a `bool ignore`;
-- if `ignore` is true, it sets `IGNORE_BIT` in the encrypted packet header;
-- `BIP324Cipher::Decrypt()` returns the decoded `ignore` value after AEAD verification.
+- the encrypted packet header carries an `ignore` bit;
+- if `ignore = true`, the packet is a decoy;
+- after AEAD verification, the receiver learns whether the decrypted packet should be ignored.
 
-`V2Transport::ProcessReceivedPacketBytes()` understands that bit. After decrypting a packet, it only advances the version/application message state when `ignore` is false. If `ignore` is true, the packet is simply treated as a valid decoy and ignored.
+Bitcoin Core implements that in its BIP324 packet cipher and transport state machine. After decrypting a packet, the transport only advances the version/application message state when `ignore` is false. If `ignore` is true, the packet is treated as a valid decoy and discarded.
 
 So receiving decoys is implemented.
 
 Sending decoys is not active in the normal Bitcoin Core message path. The variable exists, but the production calls are effectively locked to `false`:
 
-```cpp
-m_cipher.Encrypt(
-    /*contents=*/VERSION_CONTENTS,
-    /*aad=*/MakeByteSpan(m_send_garbage),
-    /*ignore=*/false,
-    ...
-);
+```text
+send_version_packet:
+    packet_contents = version_packet_contents
+    associated_data = sent_garbage_bytes
+    ignore = false
+    encrypt_packet(packet_contents, associated_data, ignore)
 ```
 
 and later, for normal application messages:
 
-```cpp
-m_cipher.Encrypt(MakeByteSpan(contents), {}, false, MakeWritableByteSpan(m_send_buffer));
+```text
+send_application_packet:
+    packet_contents = encoded_message_type || payload
+    associated_data = empty
+    ignore = false
+    encrypt_packet(packet_contents, associated_data, ignore)
 ```
 
 The tests can manually send packets with `ignore=true`, and they verify that `V2Transport` skips them correctly. But the live sending path does not currently schedule random decoy packets as a traffic-shaping policy.
 
-The version packet has a similar "implemented but fixed" shape. `V2Transport` defines:
+The version packet has a similar "implemented but fixed" shape:
 
-```cpp
-static constexpr std::array<std::byte, 0> VERSION_CONTENTS = {};
+```text
+version_packet_contents = empty
 ```
 
-The protocol has a version packet slot for future transport extensions, and receivers ignore its contents today. Bitcoin Core currently sends it empty every time.
+The protocol has a version packet slot for future transport extensions. BIP324 currently says senders should leave the version packet contents empty, and receivers should ignore the contents. Bitcoin Core follows that behavior today.
 
 ## Core Implementation
 
@@ -165,7 +201,7 @@ where `message_start` is the network magic for the active chain. That keeps main
 
 The HKDF labels in the code are the protocol roles: `initiator_L`, `initiator_P`, `responder_L`, `responder_P`, `garbage_terminators`, and `session_id`. The `L` keys are used for length encryption. The `P` keys are used for packet encryption.
 
-`BIP324Cipher::Encrypt()` writes the encrypted 3-byte length first, then encrypts the packet header and contents. `BIP324Cipher::DecryptLength()` decrypts only the length prefix so the transport knows how many more bytes to read. `BIP324Cipher::Decrypt()` verifies and decrypts the AEAD-protected packet body and returns whether the ignore bit was set.
+At the packet boundary, encryption writes the encrypted 3-byte length first, then encrypts the packet header and packet contents. On receive, the transport first decrypts only the length prefix so it knows how many ciphertext bytes belong to the current packet. After the full packet arrives, AEAD verification decrypts the header and contents and reveals whether the `ignore` bit was set.
 
 After key derivation, Bitcoin Core wipes the shared secret, the temporary HKDF output, the HKDF object, and the private key stored in the cipher object. That is a small but important implementation detail: the transport keeps the active ciphers, not the raw material needed to derive them again.
 
@@ -173,24 +209,31 @@ After key derivation, Bitcoin Core wipes the shared secret, the temporary HKDF o
 
 The higher-level implementation is `V2Transport`, a `Transport` subclass next to the old `V1Transport`.
 
-The receive side moves through these states:
+For inbound connections, the receive side starts by deciding whether the peer is speaking v1 or v2:
 
 ```text
-KEY_MAYBE_V1 -> KEY -> GARB_GARBTERM -> VERSION -> APP -> APP_READY
-       |
-       +-> V1
+if first_bytes_match_v1_version_prefix:
+    use_v1_transport()
+else:
+    receive_ellswift_pubkey()
+    receive_garbage_until_garbage_terminator()
+    verify_encrypted_version_packet()
+    enter_v2_application_phase()
 ```
 
-For inbound connections, Bitcoin Core starts in `KEY_MAYBE_V1` because it does not know yet whether the remote peer is speaking v1 or v2. If the first bytes match the v1 `version` prefix, it switches to the embedded `V1Transport`. If they do not match, it switches to v2 and starts processing the remote ElligatorSwift key.
+Bitcoin Core starts inbound connections in `KEY_MAYBE_V1` because it does not know yet whether the remote peer is speaking v1 or v2. If the first bytes match the v1 `version` prefix, it switches to the embedded `V1Transport`. If they do not match, it switches to v2 and starts processing the remote ElligatorSwift key.
 
-For outbound v2 connections, Bitcoin Core already knows it is initiating v2, so it starts in `KEY` on the receive side and immediately starts sending its own handshake bytes on the send side.
-
-The send side has a smaller state machine:
+For outbound v2 connections, Bitcoin Core already knows it is initiating v2. The receive side does not need to detect v1 first:
 
 ```text
-MAYBE_V1 -> AWAITING_KEY -> READY
-     |
-     +-> V1
+if outbound_connection_uses_v2:
+    send_ellswift_pubkey_and_random_garbage()
+    receive_peer_ellswift_pubkey()
+    derive_session_keys_and_garbage_terminators()
+    send_garbage_terminator()
+    send_empty_encrypted_version_packet()
+    wait_for_peer_version_packet()
+    enter_v2_application_phase()
 ```
 
 When `V2Transport` enters `READY`, Bitcoin Core appends the garbage terminator and the encrypted empty version packet to the send buffer. From that point onward, application messages can be encrypted and sent.
@@ -222,13 +265,20 @@ NODE_P2P_V2 = 1 << 11
 
 In this checkout, `DEFAULT_V2_TRANSPORT` is `true`. The `-v2transport` option controls whether the node supports v2 transport, and initialization adds `NODE_P2P_V2` to local services when that option is enabled.
 
-For automatic outbound connections, Bitcoin Core uses v2 only when both sides advertise `NODE_P2P_V2`. The connection code checks:
+BIP324 uses a service bit rather than a separate fixed v2 port. A separate port would make deployment and filtering simpler for observers too: a firewall could allow v1 and block v2, or classify v2 just from the port. The service bit lets peers avoid the early-deployment cost of always trying v2 and then reconnecting as v1, while keeping v1/v2 on the same listening port.
+
+For most automatic outbound connections, Bitcoin Core uses v2 only when both sides advertise `NODE_P2P_V2`. In protocol terms, the decision is:
 
 ```text
-addrConnect.nServices & GetLocalServices() & NODE_P2P_V2
+if local_node_advertises_NODE_P2P_V2 and peer_advertises_NODE_P2P_V2:
+    try_v2_transport()
+else:
+    use_v1_transport()
 ```
 
 Manual connections can also request v2 through RPC. `addnode` has a `v2transport` argument, defaulting to the node's `-v2transport` setting. If the caller asks for v2 while the local node has v2 disabled, the RPC returns an error instead of silently doing something else.
+
+One implementation nuance is address-fetch connections: Bitcoin Core may try v2 for an `ADDR_FETCH` connection when the local node supports v2, then fall back to v1 if the peer does not complete the v2 path. That does not change the general rule for normal automatic outbound peers, but it is a useful detail when reading the connection manager code.
 
 Inbound handling is different. If the local node advertises `NODE_P2P_V2`, Bitcoin Core constructs a `V2Transport` for inbound peers because that transport can detect and fall back to v1. This avoids partitioning the network: a v2-capable listening node can still accept old v1 peers.
 
@@ -238,7 +288,7 @@ BIP324's session ID is a 32-byte value derived from the ECDH secret. Bitcoin Cor
 
 The session ID does not authenticate the peer by itself. It is channel binding material. If two operators manually compare session IDs over an authenticated side channel, or if a future authentication extension signs over the session ID, then a man-in-the-middle can be detected because each side would derive a different session.
 
-That distinction is subtle but important: BIP324 gives confidentiality against passive observers and makes active attacks more expensive and more observable. It does not give every Bitcoin node a cryptographic identity.
+That distinction is subtle but important: BIP324 gives confidentiality against passive observers and integrity for the encrypted channel that was actually negotiated. It also makes active attacks more expensive and more observable. It does not give every Bitcoin node a cryptographic identity, and it does not prove that the peer on the other side is the specific node I meant to reach.
 
 ## Compatibility
 
@@ -263,7 +313,7 @@ The tests also cover:
 
 BIP324 encrypts the Bitcoin P2P transport, but it is not a complete network privacy solution.
 
-It does not hide peer IP addresses. It does not hide TCP connection timing. It does not hide packet sizes from the network. It does not hide whether a node listens on a recognizable port. It does not stop an attacker from running their own Bitcoin nodes and observing what peers send to them.
+It does not hide peer IP addresses. It does not hide TCP connection timing. It does not hide TCP/IP packet sizes or byte bursts visible to the network. It does not hide whether a node listens on a recognizable port. It does not stop an attacker from running their own Bitcoin nodes and observing what peers send to them.
 
 What it does is remove the self-identifying cleartext Bitcoin protocol from the wire and replace it with an encrypted, pseudorandom, upgradeable transport. That is a large improvement because it changes the attacker's job from "read or edit obvious Bitcoin messages" to "perform active interception or infer behavior from metadata."
 
