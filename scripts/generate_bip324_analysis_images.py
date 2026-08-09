@@ -44,7 +44,7 @@ GROUP_TITLES = {
 }
 
 EVENT_TITLES = {
-    "BIP324 handshake": "Handshake BIP324",
+    "BIP324 handshake": "BIP324 handshake",
     "Block arrival": "Block arrival",
     "Compact block arrival": "Compact block arrival",
     "Block propagation wave": "Block propagation wave",
@@ -52,7 +52,7 @@ EVENT_TITLES = {
     "INV announcement": "INV announcement",
     "Request-like burst": "Request-like burst",
     "TX-like burst": "TX-like burst",
-    "Transaction relay exchange": "Transaction relay exchange",
+    "Transaction relay exchange": "Transaction relay sequence",
 }
 
 EVENT_SLUGS = {
@@ -162,21 +162,33 @@ def save_warnet_outcome_group(frame: pd.DataFrame, slug: str, events: list[str])
 
 
 def save_warnet_confusion_matrices(frame: pd.DataFrame) -> None:
-    scoped = frame[frame["mode"] == "BIP324 handshake filter"].copy()
+    scoped = frame[
+        (frame["mode"] == "BIP324 handshake filter")
+        & (frame["event"] != "BIP324 handshake")
+    ].copy()
     scoped = scoped.sort_values("event")
     for _, row in scoped.iterrows():
         save_warnet_confusion_event(row)
+    save_warnet_handshake_flow_confusion()
 
 
-def save_warnet_confusion_event(row: pd.Series) -> None:
+def save_warnet_handshake_flow_confusion() -> None:
+    frame = pd.read_csv(RESULTS / "notebook_handshake_flow_confusion.csv")
+    row = frame[frame["mode"] == "BIP324 handshake filter"].iloc[0].copy()
+    row["event"] = "BIP324 handshake"
+    save_warnet_confusion_event(row, include_true_negative=True)
+
+
+def save_warnet_confusion_event(row: pd.Series, include_true_negative: bool = False) -> None:
     fig, ax = plt.subplots(figsize=(7.4, 6.4))
-    vv = int(row.true_positive)
-    vf = int(row.false_positive)
-    fv = int(row.false_negative)
-    total = vv + vf + fv
-    values = [[vv, fv], [vf, 0]]
+    tp = int(row.true_positive)
+    fp = int(row.false_positive)
+    fn = int(row.false_negative)
+    tn = int(row.true_negative) if include_true_negative else 0
+    total = tp + fp + fn + tn
+    values = [[tp, fn], [fp, tn]]
     labels = [["TP", "FN"], ["FP", "TN"]]
-    percentages = [[pct(vv, total), pct(fv, total)], [pct(vf, total), 0.0]]
+    percentages = [[pct(tp, total), pct(fn, total)], [pct(fp, total), pct(tn, total)]]
 
     ax.imshow(percentages, cmap="Blues", vmin=0, vmax=100)
     ax.set_title(EVENT_TITLES.get(str(row.event), str(row.event)), fontsize=17, pad=18, wrap=True)
@@ -208,7 +220,8 @@ def save_warnet_confusion_event(row: pd.Series) -> None:
         spine.set_color("#334155")
         spine.set_linewidth(1.0)
 
-    fig.suptitle("Warnet confusion matrix", fontsize=22, y=0.985)
+    matrix_title = "Warnet full-PCAP flow confusion" if include_true_negative else "Warnet confusion matrix"
+    fig.suptitle(matrix_title, fontsize=22, y=0.985)
     fig.supxlabel("Predicted category", fontsize=15, y=0.045)
     fig.supylabel("Actual category", fontsize=15, x=0.02)
     fig.subplots_adjust(
