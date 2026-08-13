@@ -220,10 +220,9 @@ def save_warnet_confusion_event(row: pd.Series, include_true_negative: bool = Fa
         spine.set_color("#334155")
         spine.set_linewidth(1.0)
 
-    matrix_title = "Warnet full-PCAP flow confusion" if include_true_negative else "Warnet confusion matrix"
+    matrix_title = "Warnet labeled-flow confusion" if include_true_negative else "Warnet confusion matrix"
     fig.suptitle(matrix_title, fontsize=22, y=0.985)
     fig.supxlabel("Predicted category", fontsize=15, y=0.045)
-    fig.supylabel("Actual category", fontsize=15, x=0.02)
     fig.subplots_adjust(
         left=0.14,
         right=0.97,

@@ -1,7 +1,7 @@
 +++
 title = "Passive Traffic Analysis of Bitcoin P2P v2"
 date = 2026-06-23
-updated = 2026-08-09
+updated = 2026-08-12
 description = "A controlled Warnet experiment and mainnet PCAP study of the metadata that remains visible in Bitcoin P2P v2 traffic."
 [taxonomies]
 tags = ["bitcoin", "bip324", "traffic-analysis", "warnet"]
@@ -36,11 +36,11 @@ This is an updated account of an ongoing experiment. In the same-capture compari
 
 ## Experimental boundary
 
-The detector reads only the PCAP. It does not read Bitcoin Core logs, Warnet roles, the simulation seed, or generated traffic profiles. Those artifacts are kept outside detection and are used for validation and reproducibility.
+Event classification uses only features derived from the PCAP. For Warnet captures, the pipeline first uses `ip-map.txt` to define the controlled lab scope and exclude the sniffer and unmapped infrastructure flows. The map is not used to tell the classifier whether a retained flow is Bitcoin or noise. Bitcoin Core logs and `metadata.json` are loaded only after candidate generation for validation, labeling, and reproducibility.
 
 The b10c mainnet captures do not have matching logs in this dataset. They can show candidate volume, but not whether a candidate is correct.
 
-The current Warnet run contains 632 scoped flows, including five Bitcoin-port flows and one additional handshake-like candidate. That sixth candidate is the obfs4 noise flow. It started about four seconds before the common PCAP/log validation window, so it is visible in passive candidate tables but excluded from the temporal confusion counts. The seed is recorded as `9c221b3ee1d50c69b6cb6dc55919a958`.
+The current Warnet run contains 632 lab-scoped flows, including five Bitcoin-port flows and one additional handshake-like candidate. That sixth candidate is the obfs4 noise flow. It started `3.71` seconds before the common PCAP/log validation window, so it is visible in the captured-flow audit but excluded from the temporal confusion counts. The seed is recorded as `9c221b3ee1d50c69b6cb6dc55919a958`.
 
 ## What changed in the lab
 
@@ -112,9 +112,9 @@ Here, precision is the fraction of predictions matched to the reference, recall 
 
 ### Current run
 
-The table compares F1 across all three filters. The last three columns expose the confusion counts for the handshake-filtered result.
+The table compares F1 across all three filters inside the common PCAP/log validation window. The last three columns expose the temporal confusion counts for the handshake-filtered result.
 
-| Event | No filter F1 | Bitcoin-port F1 | Handshake-filter F1 | TP | FP | FN |
+| Event | No filter F1 | Bitcoin-port F1 | Handshake-filter F1 | Temporal TP | Temporal FP | Temporal FN |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | BIP324 handshake | 100.00% | 100.00% | 100.00% | 5 | 0 | 0 |
 | Block arrival | 6.96% | 15.89% | 13.79% | 164 | 481 | 1,569 |
@@ -126,13 +126,13 @@ The table compares F1 across all three filters. The last three columns expose th
 | TX-like burst | 56.79% | 65.13% | 56.79% | 324 | 299 | 194 |
 | Transaction relay sequence | 61.07% | 70.58% | 61.07% | 331 | 292 | 130 |
 
-Inside the validation window, the handshake detector found all five reference handshakes and produced no measured false positive. The full PCAP still contains the earlier obfs4 candidate described above. The `100%` score therefore describes only the five validated connections, not perfect separation from encrypted noise. This replaces the earlier published table, in which a Tor/noise candidate occurred inside the measured window and was counted as a false positive.
+Inside the validation window, the handshake detector found all five reference handshakes and produced no measured false positive. The wider captured-flow scope still contains the earlier obfs4 candidate described above. The `100%` temporal score therefore describes only the five validated connections, not perfect separation from encrypted noise.
 
-For handshake noise testing, I now use a second evaluation that covers the complete PCAP. It treats flows involving the controlled Bitcoin nodes as positives and lab-generated noise flows as negatives. The IP map supplies these labels only after passive detection. This assumes that the mapped tank connections are BIP324 flows and should be understood as lab-level flow labeling, not packet-level message ground truth.
+For handshake noise testing, I use a second evaluation over all 632 retained lab flows, including traffic outside the PCAP/log overlap. It treats flows involving the controlled Bitcoin nodes as positives and lab-generated noise flows as negatives. The IP map supplies these labels after candidate generation. This assumes that the mapped tank connections are BIP324 flows and should be understood as lab-level flow labeling, not packet-level message ground truth.
 
 | Scope | Bitcoin flows | Noise flows | TP | FP | FN | TN | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Full PCAP | 5 | 627 | 5 | 1 | 0 | 626 | 83.33% | 100.00% | 90.91% |
+| Captured lab flows | 5 | 627 | 5 | 1 | 0 | 626 | 83.33% | 100.00% | 90.91% |
 
 | Noise type | Flows | Handshake candidates |
 | --- | ---: | ---: |
@@ -145,15 +145,15 @@ For handshake noise testing, I now use a second evaluation that covers the compl
 
 In this capture, the single obfs4 flow matched the current early-flight rules and was counted as a false positive. The overall false-positive rate across labeled noise flows is `0.16%`; however, the obfs4 subset contains only one flow. This observation identifies a case that the current heuristic does not separate, but it does not estimate an obfs4 false-positive rate.
 
-Future lab runs hold the obfs4 client until the initial Bitcoin setup is complete, with the intention of placing its connection inside the Core-log interval as well. The full-PCAP flow audit remains separate as a complementary test when event logs start later than the capture.
+Future lab runs hold the obfs4 client until the initial Bitcoin setup is complete, with the intention of placing its connection inside the Core-log interval as well. The captured-flow audit remains separate as a complementary test when event logs start later than the capture.
 
-In this run, the transaction-sequence detector produced non-zero matches and had higher recall than its components considered in isolation. The measured block results remain limited: block arrival produced many false positives, and block propagation had low recall.
+In this run, the transaction-sequence detector produced non-zero matches and measured `71.80%` recall, compared with `62.13%` for INV, `24.41%` for request-like, and `62.55%` for TX-like evidence. This comparison is internal to the current reference mapping and does not establish message decoding. The measured block results remain limited: block arrival produced 481 false positives and `9.46%` recall, while block propagation produced `2.65%` recall.
 
 The current passive thresholds are independent from logs. An older implementation derived Warnet thresholds from Bitcoin Core events, introducing validation information into detection and producing higher metrics for some block cases. The current implementation removes that dependency, while the resulting block measurements indicate that the fixed threshold still requires calibration.
 
 ### Historical comparison on the same capture
 
-To separate code changes from different Warnet runs, I executed the old and current analysis against the same PCAP and logs.
+To separate code changes from different Warnet runs, I executed the old and current analysis against the same PCAP and logs. The old values below are retained from that archived comparison; the current column was checked again against the present CSV output.
 
 | Event | Old handshake-filter F1 | Current handshake-filter F1 | Observation |
 | --- | ---: | ---: | --- |
@@ -170,7 +170,9 @@ Large-transaction results are omitted from this comparison because its reference
 
 ### Confusion matrices
 
-The handshake matrix uses full-PCAP flow labels and therefore includes the measured `TN=626` and the obfs4 false positive. The remaining matrices use temporal event matching inside the PCAP/log overlap. Their `TN=0` cells are placeholders because negative event windows are not enumerated.
+The handshake matrix uses labels for all retained lab flows and therefore includes the measured `TN=626` and the obfs4 false positive. Its cell percentages use all labeled flows as the denominator. The remaining matrices use temporal event matching inside the PCAP/log overlap. Their percentages use `TP + FP + FN`, and their `TN=0` cells are placeholders because negative event windows are not enumerated.
+
+The high FN counts are present in the current evaluation: five of the eight post-handshake rules miss more than half of their corresponding log references. The highest miss rates are block propagation (`97.35%`), block arrival (`90.54%`), compact-block arrival (`86.24%`), request-like bursts (`75.59%`), and large transactions (`60.48%`). These are `FN / (TP + FN)` rates, not the displayed share of all measured outcomes. They indicate low measured recall, but may also reflect the difference between per-node or per-peer log records and aggregated passive bursts. The results therefore show a limitation of the present detector and reference mapping rather than a packet-level count of every missed message.
 
 ![Warnet BIP324 handshake confusion matrix](../../images/bip324-traffic-analysis/warnet-confusion-handshake.svg)
 
@@ -192,15 +194,15 @@ The handshake matrix uses full-PCAP flow labels and therefore includes the measu
 
 ## Search-space reduction
 
-In this run, the port and handshake filters reduced how many flows reached later heuristics. A logarithmic scale keeps the 632-flow unfiltered case readable beside the smaller filtered sets.
+In this run, the port and handshake filters reduced how many retained lab flows reached later heuristics. A logarithmic scale keeps the 632-flow unfiltered case readable beside the smaller filtered sets.
 
 ![Warnet flow scope comparison](../../images/bip324-traffic-analysis/warnet-flow-scope.svg)
 
-This is a reduction in work, not an accuracy result. The Bitcoin-port filter inspected five flows. The handshake stage selected six candidates without using the port: five validated Bitcoin flows and the pre-window obfs4 flow.
+This is a reduction in work, not an accuracy result. The Bitcoin-port filter inspected five flows. The handshake stage selected six candidates without using the port: five labeled Bitcoin flows and the pre-window obfs4 flow.
 
 ## Mainnet captures
 
-I also applied the passive pipeline to two mainnet PCAPs shared by b10c. These captures were already scoped around Bitcoin traffic, so the no-filter and port-filter views are the same. There are no matching logs, and the values below are candidate counts rather than TP, FP, or FN.
+I also applied the passive pipeline to two mainnet PCAPs shared by b10c. In the generated outputs, every retained flow also appears in the `8333`-port view, so the no-filter and port-filter counts are identical and only one of those duplicate rows is shown below. There are no matching logs, and the values are candidate counts rather than TP, FP, or FN.
 
 | Capture | Filter | TCP flows | Handshake candidates | Block candidates | Compact-block candidates | Large-tx candidates |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
@@ -215,16 +217,29 @@ The table only shows that filtering changes candidate volume. Without independen
 
 A stable default listening port can provide an observer with a simple first-stage filter: inspect flows involving `8333`. A non-default port may make that filter less useful, while packet-size and timing metadata remain observable.
 
-I have two opt-in experiments in my Bitcoin Core fork:
+The implementation retained in my Bitcoin Core fork is an opt-in random port selected at startup. It is not part of upstream Bitcoin Core, and the current tests establish local behavior rather than a deployment-ready privacy result.
 
-- [dynamic randomization](https://github.com/victorandre957/bitcoin/pull/3), which changes the listening port for each new connection and advertises the current address;
-- [startup randomization](https://github.com/victorandre957/bitcoin/pull/2), which chooses a high port, persists it after a successful bind, and reuses it across restarts.
+### Random port selected at startup
 
-The dynamic design changes more state and appears more complex to advertise correctly. The startup design behaves like a stable non-default port after its first bind. Both currently share a reachability trade-off in this proposal: a DNS seed result does not carry the randomized per-node port needed for a direct inbound connection to that node.
+In the [startup-randomization experiment](https://github.com/victorandre957/bitcoin/pull/2), `-port=0` requests a port from `49152` through `65534`. The implementation excludes the known Bitcoin network ports and ports that Bitcoin Core already considers unsuitable, checks whether the candidate can be bound, and makes at most 512 attempts. This applies to the clearnet listener; the default Tor target is deliberately left unchanged.
+
+The selected port is written to `settings.json` only after the connection manager starts successfully. Later starts reuse that value. If the saved port is no longer available, startup fails instead of silently choosing another one. This makes the advertised endpoint stable across restarts, although it also requires operator intervention after a port conflict. Explicit `-bind`, `-whitebind`, and `-externalip` ports are validated separately.
+
+The experiment uses Bitcoin Core's existing local-address path. `GetListenPort()` returns the selected port, `AddLocal()` associates it with discovered or configured local addresses, and the node can advertise the resulting IP-and-port endpoint in `addr` or `addrv2` messages. Randomization therefore changes the endpoint advertised through P2P address relay; it does not add a new discovery protocol.
+
+### Why dynamic rotation was discarded
+
+I also prototyped rotating the listening port after accepted inbound connections, but did not retain that design. Keeping it reachable would require the surrounding network infrastructure to follow every rotation, including firewall rules, router port forwarding or NAT mappings, and address announcements. That adds operational state whose correctness is difficult to preserve across different environments.
+
+The prototype also did not indicate a clear additional benefit for hiding the node. Rotation changes the destination port, but a passive observer can still see the IP address, TCP connection timing, packet sizes, direction, and BIP324 handshake-like behavior. Given that limited expected benefit and the additional reachability complexity, the current work focuses only on choosing and persisting a non-default port at startup. This is an engineering decision based on the present implementation and experiments, not a general proof that dynamic rotation cannot be useful under another threat model.
+
+### Discovery and passive observation
+
+Bitcoin Core's current DNS-seed path converts returned IP addresses into endpoints using the network's default port. A DNS response alone therefore cannot tell a new node which random port was selected at startup. A randomized listener may still become discoverable through `addr` or `addrv2`, because those records include the port, but that requires the endpoint to reach address relay through some other peer. This is a reachability trade-off, not evidence that randomized nodes cannot be reached at all.
 
 For a passive observer, plausible approaches include using the default-port filter where it exists or searching a wider set of flows using handshake and temporal metadata. The 2026 BIP324 security analysis similarly treats the default port as useful prior knowledge because v2 traffic is not self-identifying on the wire.
 
-These results do not support treating randomized ports as a replacement for BIP324. They may reduce the usefulness of one simple classifier, but they do not hide outbound connections to peers on `8333`, flow endpoints, sizes, or timing.
+Port randomization has not been included in the accuracy measurements presented above. At most, the implementation suggests that a non-default listening port can remove one convenient signal from inbound-flow selection. It does not hide IP addresses, TCP behavior, packet sizes, timing, or outbound connections to peers that still listen on `8333`. It should therefore not be treated as a replacement for BIP324 or as a demonstrated privacy improvement without broader testing.
 
 ## Current limits and next steps
 
