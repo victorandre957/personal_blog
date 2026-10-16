@@ -30,7 +30,7 @@ jobs:
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/workspace" \
             -w /workspace \
-            ghcr.io/getzola/zola:v0.22.1 \
+            ghcr.io/getzola/zola:v0.23.6 \
             check --skip-external-links
 
       - name: Build Zola site
@@ -38,7 +38,7 @@ jobs:
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/workspace" \
             -w /workspace \
-            ghcr.io/getzola/zola:v0.22.1 \
+            ghcr.io/getzola/zola:v0.23.6 \
             build
 
       - name: Upload Pages artifact

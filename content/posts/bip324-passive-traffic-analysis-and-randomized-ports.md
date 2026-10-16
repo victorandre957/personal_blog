@@ -1,7 +1,7 @@
 +++
 title = "Passive Traffic Analysis of Bitcoin P2P v2"
 date = 2026-06-23
-updated = 2026-08-12
+updated = 2026-10-14
 description = "A controlled Warnet experiment and mainnet PCAP study of the metadata that remains visible in Bitcoin P2P v2 traffic."
 [taxonomies]
 tags = ["bitcoin", "bip324", "traffic-analysis", "warnet"]
@@ -26,6 +26,8 @@ td {
 </style>
 
 BIP324 encrypts Bitcoin P2P v2 messages and their internal length field. A passive observer cannot read the message type, but can still measure TCP/IP headers, payload sizes, timing, direction, endpoints, and connection behavior. This experiment asks how much those signals reveal without decrypting traffic or operating another Bitcoin node as an observer.
+
+A [follow-up experiment](@/posts/bip324-traffic-ml-v2-preliminary-results.md) trains one multiclass model on mixed PCAPs and reports preliminary results from held-out captures.
 
 I use two separate projects:
 

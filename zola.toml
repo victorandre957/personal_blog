@@ -2,7 +2,7 @@
 base_url = "https://victorandre957.github.io/personal_blog"
 title = "Victor André"
 author = "Victor André"
-theme = "kita"
+theme = "kita_023"
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
