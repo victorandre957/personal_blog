@@ -27,7 +27,7 @@ td {
 
 BIP324 encrypts Bitcoin P2P v2 messages and their internal length field. A passive observer cannot read the message type, but can still measure TCP/IP headers, payload sizes, timing, direction, endpoints, and connection behavior. This experiment asks how much those signals reveal without decrypting traffic or operating another Bitcoin node as an observer.
 
-A [follow-up experiment](@/posts/bip324-traffic-ml-v2-preliminary-results.md) trains one multiclass model on mixed PCAPs and reports preliminary results from held-out captures.
+A [follow-up experiment](@/posts/bip324-traffic-ml-analysis.md) trains one multiclass model on mixed PCAPs and reports the final results of the controlled campaign on held-out captures.
 
 I use two separate projects:
 
