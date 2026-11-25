@@ -1,133 +1,211 @@
 +++
-title = "Classifying BIP324 Traffic in a Full Network Capture: Preliminary ML Results"
+title = "Identifying BIP324 Traffic: Final Analysis of a Controlled ML Experiment"
 date = 2026-10-14
-updated = 2026-10-27
-description = "Two current models compared on the same Bitcoin v2 traffic test set, with model-specific feature-dependence analysis."
+updated = 2026-11-24
+description = "XGBoost and CNN identify Bitcoin v2 traffic without IPs or ports. Final lab results compare activity classification, false alarms, feature dependence and recognition without the connection opening."
 [taxonomies]
 tags = ["bitcoin", "bip324", "traffic-analysis", "machine-learning", "warnet"]
 +++
 
-BIP324 encrypts P2P messages, while sizes, timing and direction remain visible. Building on my [earlier passive analysis](@/posts/bip324-passive-traffic-analysis-and-randomized-ports.md), I test whether one multiclass model can identify v2 activity in a **full-network PCAP**, using those measurements. I compare the two current models trained on the expanded dataset: **Model 1 (XGBoost)** and **Model 2 (temporal CNN)**.
+BIP324 encrypts P2P messages, while packet sizes, timing and direction remain observable. Building on my [earlier passive analysis](@/posts/bip324-passive-traffic-analysis-and-randomized-ports.md), this experiment asks whether those measurements can identify **Bitcoin v2 connections and their activities in a full-network PCAP**.
 
-## Collection and labels
+I compare **XGBoost** and a **temporal CNN**. Both identify all Bitcoin v2 connections in the combined test, with some false alarms. Useful activity classification also survives removing the observed opening. This is the final analysis of the current lab campaign.
 
-The [Warnet lab](https://github.com/victorandre957/bip324-traffic-lab) runs Bitcoin Core beside HTTP, HTTPS, Tor, obfs4-shaped, BitTorrent and UDP traffic, with accelerated Bitcoin timing and heavy background noise. A bridge sniffer records the mixed network. This is a controlled simulation.
+## Collection and ground truth
 
-The [ML pipeline](https://github.com/victorandre957/bip324-traffic-ml) extracts 250 ms payload windows from supported TCP/UDP flows, without a Bitcoin-port filter or heuristic preclassification. Payload-free flows have no activity windows. Core connection records and message logs provide training/evaluation labels:
+The [Warnet lab](https://github.com/victorandre957/bip324-traffic-lab) runs Bitcoin Core beside HTTP, HTTPS, Tor, obfs4-shaped, BitTorrent and UDP traffic. A bridge sniffer records the mixed network. The dataset combines accelerated and mainnet-like block timing, initial synchronization, and activity on established connections. Every profile uses **regtest**.
 
-- **`other`:** non-v2 traffic, including legacy v1 and background applications.
-- **`handshake`:** the opening v2 connection exchange.
-- **`inv`:** announcement of transaction/block identifiers.
-- **`getdata`:** request for an announced object.
+The established-connection workload includes nodes with a preloaded chain, transactions throughout the measurement, and deliberate historical full-block transfers after the opening. Its new-block intervals are 120–180 seconds. Historical transfers ensure late full-block examples; their frequency is a controlled workload, rather than an estimate of mainnet relay rates. Keeping the older IBD cases covers another behavior that occurs in real networks.
+
+The [ML pipeline](https://github.com/victorandre957/bip324-traffic-ml) separates PCAP extraction, labeling and training. It groups supported TCP/UDP traffic into bidirectional flows, then extracts nonempty **250 ms payload windows**, without a Bitcoin-port filter or a preliminary Bitcoin detector. Payload-free flows do not produce activity targets.
+
+Core logs and lab metadata supply ground truth **only**. The multiclass targets are:
+
+- **`other`:** non-v2 traffic, including background applications and legacy v1. V1 is not a positive Bitcoin target in this study.
+- **`handshake`:** the opening v2 exchange.
+- **`inv`:** announcement of transaction or block identifiers.
+- **`getdata`:** a request for an object, such as a transaction or block.
 - **`tx`:** transaction transfer, including matched `inv` → `getdata` → `tx` sequences.
 - **`block`:** full block transfer.
-- **`cmpctblock`:** compact block transfer, reconstructed using transactions the receiver already has.
-- **`bitcoin_v2_other`:** a v2 window without a matched specific event.
+- **`cmpctblock`:** compact block transfer for reconstruction using transactions already available to the receiver.
+- **Unclassified Bitcoin (`bitcoin_v2_other`):** logs/connection metadata establish that the flow uses v2, but the pipeline assigns none of the specific activity labels to this window. This is a dataset category, not a Bitcoin message type.
 
-Ambiguous targets are excluded; a full block sharing a window with its request remains `block`. Matching uses endpoints and time, rather than decrypted packet-level truth. Older and newer prepared data use different pipeline revisions, which remains a limitation of this experiment.
+Labels are approximate endpoint/time matches to logs, not decrypted packet-level truth. Ambiguous activities are excluded as activity targets, but can provide context and enter Bitcoin-versus-other evaluation when their transport is known. A message can span several windows; a window can contain several messages. These are activity classifications, not message decoding.
 
-## What the models see
+The unclassified Bitcoin category can contain commands outside the selected activities, such as `ping`, `pong` or `headers`, and windows not matched to a specific logged event. An event is associated with a nearby window; this does not label every window spanned by its message. **Unclassified Bitcoin is still known Bitcoin v2 traffic; its activity label does not establish the presence or absence of `getdata`.** Conflicting specific labels normally produce `ambiguous`, a separate category. These labels train the activity classifier; they are never inputs.
 
-The [feature builder](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/features.py) supplies **34 numeric inputs**:
+## Exactly what enters the models
 
-- **Current window (7):** directional payload bytes/packet counts, totals and byte-direction imbalance.
-- **Burst timing (6):** duration, byte rate and preceding gap, per direction.
-- **Neighboring windows (8):** bytes 1, 2 and 4 observed windows before/after; bytes/packets in the preceding four.
-- **Connection age (4):** elapsed seconds and phase flags for the first second, next four seconds and later traffic. The `handshake` phase is a time range, not a Core label.
-- **Opening exchange (5):** first payload and initial sending-turn sizes per direction, plus entropy of early captured bytes.
-- **Whole flow (3):** completed duration, total packets and payload-carrying packets.
+The [feature builder](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/features.py) selects **34 numeric inputs**:
+
+- **Window sizes and counts (7):** payload bytes and packet counts in each direction, their totals, and byte-direction imbalance.
+- **Burst timing (6):** duration, byte rate and gap since the preceding payload activity, measured separately in each direction.
+- **Neighboring windows (8):** payload bytes 1, 2 and 4 observed nonempty windows before and after the target; bytes and packets in the previous four.
+- **Observed connection age (4):** seconds since the first observed packet, plus flags for age below 1 second, 1–5 seconds and at least 5 seconds. Their code names include `phase_handshake`, but they are time bins, not known handshake labels.
+- **Opening exchange (5):** first payload size and initial sending-turn size in each direction, plus entropy of early captured bytes.
+- **Whole-flow statistics (3):** completed duration, total packet count and payload-carrying packet count.
 - **Transport (1):** TCP versus UDP.
 
-Excluded inputs:
+**IPs and ports never enter either model.** They group packets into flows and help associate ground truth. Flow IDs, node identities/roles, Core logs, IP maps and noise-family labels are also excluded as inputs, avoiding direct endpoint or lab-identity shortcuts. Raw payload bytes and heuristic detector outputs are excluded; only the early entropy summary is retained.
 
-- **IPs, ports and IDs:** identify flows and pair labels, but could memorize lab endpoints or known ports. Randomized-port validation remains separate work.
-- **Absolute time and node roles:** could identify a particular lab run or node.
-- **Core logs, IP maps and noise-family labels:** ground truth and error analysis only.
-- **Raw payload and heuristic detector flags:** would introduce content signatures or reproduce an existing detector. Only the entropy summary is retained.
+**Absolute timestamps do not enter the models.** PCAP timestamps are used to derive relative age, intervals, durations, rates and ordering. This distinction matters: the models see how traffic evolves, not the calendar date or time of day. The dependence on elapsed time is measured below.
 
-**Model 1 — [XGBoost](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/training/xgboost.py)** classifies one feature row at a time. **Model 2 — [temporal CNN](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/training/temporal.py)** processes the target plus up to four adjacent buckets per side within the same flow, allowing it to learn short traffic sequences. Ambiguous windows may supply context. Future windows and whole-flow totals make both models **offline classifiers**.
+[XGBoost](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/training/xgboost.py) classifies each feature row using 400 trees of depth 5. The [CNN](https://github.com/victorandre957/bip324-traffic-ml/blob/main/src/bip324_traffic_ml/training/temporal.py) processes the target plus up to four adjacent 250 ms buckets on each side within the same flow; it trains for 32 epochs with batches of 1,024. Both use the opening features. Neither requires a previous handshake prediction, and the CNN does not retain hidden state between predictions.
 
-## Results: the two current models
+Future-window features and completed-flow statistics make this an **offline PCAP analysis**, rather than a demonstrated real-time detector. Class weights and CNN normalization use training data only.
 
-Both models were fitted on the **same training data** and evaluated on the **same combined held-out test set**. The test includes previously used examples and newly reserved flows; all were excluded from fitting these models. The labels Model 1 and Model 2 identify the architectures, not successive dataset versions.
+## Final mixed-data results
 
-| Partition | Labeled windows | Flows | V2 flows |
-| --- | ---: | ---: | ---: |
-| Training | 1,476,456 | 272,380 | 1,952 |
-| Test | 170,830 | 31,993 | 250 |
+Whole lab runs are held out, so windows from a test run never enter training. The test includes both older profiles and the established-connection workload. Hyperparameters and epoch counts are fixed before evaluating this update.
 
-That is **304,373 flows contributing labeled windows**. Another 92,476 ambiguous windows were excluded as targets. A window is a 250 ms slice; a flow is the complete bidirectional exchange. Flow detection takes a majority vote across window predictions after mapping every v2 activity to Bitcoin.
-
-| Metric | Model 1: XGBoost | Model 2: CNN |
+| Partition | Activity-labeled windows | Flows contributing targets |
 | --- | ---: | ---: |
-| Window accuracy | 98.21% | 98.56% |
-| Macro F1 (eight classes) | 0.736 | 0.780 |
-| Balanced accuracy | 0.808 | 0.850 |
-| V2 windows predicted as `other` | 19 / 12,859 (0.1478%) | 16 / 12,859 (0.1244%) |
-| `other` windows predicted as v2 | 129 / 157,971 (0.0817%) | 56 / 157,971 (0.0354%) |
-| V2 flows found (majority vote) | 250 / 250 | 249 / 250 |
-| Non-v2 flows incorrectly called v2 | 3 / 31,743 | 5 / 31,743 |
+| Training | 2,415,768 | 451,044 |
+| Test | 602,004 | 114,511 |
 
-`other` accounts for **92.5%** of test windows, so per-class F1 helps interpret the overall accuracy:
+Together, **565,555 flows** contribute activity targets. The tables below report the combined held-out test, not training performance.
 
-| Activity | Test windows | Model 1 F1 | Model 2 F1 |
+### Reading the scores
+
+I use **identification score (F1)** for each activity. Precision measures how often a predicted activity is correct; recall measures how much of the true activity is found. F1 is their harmonic mean, from 0 to 1. **A score of 0.8 does not mean 80% of examples were classified correctly.** The **mean class score (macro F1)** gives every class equal weight, preventing abundant `other` windows from dominating the summary.
+
+| Metric | XGBoost | CNN |
+| --- | ---: | ---: |
+| Activity-window accuracy | 98.52% | 98.88% |
+| Mean class score (macro F1) | 0.787 | 0.811 |
+| Mean class recall (balanced accuracy) | 0.848 | 0.878 |
+
+`other` accounts for 92.8% of these windows, so overall accuracy alone would hide important errors:
+
+| Activity | Test windows | XGBoost identification score | CNN identification score |
 | --- | ---: | ---: | ---: |
-| V2 handshake | 203 | 0.892 | 0.895 |
-| `inv` | 6,609 | 0.881 | 0.913 |
-| `cmpctblock` | 1,000 | 0.807 | 0.777 |
-| `tx` | 249 | 0.672 | 0.688 |
-| `block` | 88 | 0.626 | 0.795 |
-| `getdata` | 347 | 0.399 | 0.453 |
-| V2 without a matched specific activity | 4,363 | 0.611 | 0.718 |
+| `handshake` | 239 | 0.891 | 0.887 |
+| `inv` | 27,280 | 0.892 | 0.933 |
+| `cmpctblock` | 1,343 | 0.805 | 0.774 |
+| `tx` | 1,105 | 0.818 | 0.850 |
+| `block` | 317 | 0.845 | 0.850 |
+| `getdata` | 1,295 | 0.434 | 0.460 |
+| Unclassified Bitcoin | 11,945 | 0.611 | 0.735 |
+| `other` | 558,480 | 0.99990 | 0.99983 |
 
-Model 2 has higher macro F1 and fewer noise false positives per window. Model 1 finds all 250 v2 flows after voting, while Model 2 misses one. Their window-level and flow-level errors therefore describe different behavior.
+### Why is `getdata` harder to distinguish?
 
-The CNN's 56 false-positive windows were mainly Tor (25) and obfs4-shaped traffic (24). XGBoost's 129 were mostly HTTPS (47), obfs4-shaped (39) and HTTP (34). Only 88 full-block windows are scored, so block results still have limited support.
+The main confusion is **inside Bitcoin v2 traffic**, especially with the unclassified Bitcoin category. XGBoost correctly calls 866 of the 1,295 labeled `getdata` windows; the CNN calls 953. However, they also predict `getdata` for 1,603 and 1,827 windows labeled unclassified Bitcoin. These count as errors against the dataset labels, but do not prove that every such window lacked a request. The measured precision is low; the contribution of incomplete labeling has not been quantified.
+
+`getdata` is a request: a successful response carries the requested transaction or block, rather than another `getdata`. [Core processes queued transaction requests in batches, but at most one block item per processing call](https://github.com/bitcoin/bitcoin/blob/master/src/net_processing.cpp). This is a per-peer queue, not a single outstanding request for the whole node. Transaction requests can be ignored when that peer has no transaction-relay state, including block-relay-only connections. These rules make response patterns conditional, but we have not established missing responses as the cause of the low score. Our `getdata` label comes from its own logged event and does not require a successful response.
+
+Several factors plausibly contribute:
+
+- **Similar wire lengths:** [`inv` and `getdata` use the same inventory-list payload format](https://developer.bitcoin.org/reference/p2p_networking.html#getdata). Equal-sized lists can have equal lengths; the message-type distinction is encrypted in v2.
+- **Request/response aggregation:** a short request can share a 250 ms window with a much larger response. Packet segmentation and coalescing also prevent treating a window as an isolated request.
+- **Approximate labels:** matching logs to windows can leave specific activities unpaired. Windows containing multiple labeled activities can become ambiguous, while a full-block transfer takes priority over its co-occurring request.
+
+These explanations fit the representation and confusion matrix; the experiment does not isolate how much each contributes. In particular, the scores do not show that `getdata` is usually mistaken for background traffic.
+
+The mixture also preserves coverage across workloads. On the older test, training only on the new workload gives zero full-block identification score for both models; mixed training gives 0.719/0.778. On the new test, the mixed models score 0.883/0.879 for full blocks. Data quantity, traffic profiles and pipeline revisions change together, so this comparison does not isolate IBD as the sole cause.
+
+### Bitcoin v2 versus background traffic
+
+The same multiclass predictions can be mapped to v2 versus `other`, without a second binary model. The negative category is **background traffic plus legacy Bitcoin v1**. Including 33,779 ambiguous-activity windows with known transport gives **635,783 test windows across 114,511 flows**. Connection results use a majority vote across their scored windows; ties count as v2.
+
+| Detection result, complete test | XGBoost | CNN |
+| --- | ---: | ---: |
+| Bitcoin v2 connections found | 331 / 331 | 331 / 331 |
+| Background/v1 connections incorrectly called v2 | 2 / 114,180 | 15 / 114,180 |
+| V2 windows incorrectly called `other` | 18 / 77,303 | 16 / 77,303 |
+| Background/v1 windows incorrectly called v2 | 95 / 558,480 | 177 / 558,480 |
+| Precision of v2 connection predictions | 0.994 | 0.957 |
+
+Thus both have **100% v2-connection recall in this test**, while neither perfectly separates v2 from background/v1 connections. Individual windows still produce errors. Most false-positive windows are obfs4-shaped, HTTPS and Tor for XGBoost, and Tor and obfs4-shaped for the CNN. These rates describe this lab population.
+
+## Classification with and without the observed handshake
+
+This comparison tests whether later activity remains recognizable **without access to the connection opening**. Neither model receives a flag saying “this flow was already identified as Bitcoin”, nor a previous handshake prediction. A detector that first marks a flow as Bitcoin and then classifies its messages would be a separate experiment.
+
+Both XGBoost and CNN are evaluated in two configurations:
+
+- **With opening context (34 inputs):** opening measurements, observed connection age and original whole-flow statistics remain available when classifying a later window.
+- **Without opening/history (22 inputs):** refit after discarding the first 30 seconds of every flow, including noise, and removing opening measurements, age/phase flags and original whole-flow totals. Lags, leads, rolling counts and the first retained gap per direction are rebuilt; CNN context contains retained windows only.
+
+Both configurations classify **exactly the same later targets** from the combined test. Seven classes remain; handshake is absent as a target. This tests more than removing the handshake alone: other original-history features are also excluded. Short flows can disappear, so the scores are not directly comparable with the eight-class, complete-network scores above.
+
+| Model | Available context | Mean class score | Activity-window accuracy |
+| --- | --- | ---: | ---: |
+| XGBoost | With opening context | 0.774 | 97.87% |
+| XGBoost | Without opening/history | 0.742 | 97.66% |
+| CNN | With opening context | 0.801 | 98.40% |
+| CNN | Without opening/history | 0.765 | 98.04% |
+
+| Later activity | Test windows | XGBoost with opening | XGBoost without opening/history | CNN with opening | CNN without opening/history |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `block` | 229 | 0.883 | 0.739 | 0.864 | 0.749 |
+| `cmpctblock` | 1,294 | 0.808 | 0.788 | 0.781 | 0.729 |
+| `inv` | 26,340 | 0.893 | 0.887 | 0.933 | 0.930 |
+| `tx` | 1,036 | 0.817 | 0.802 | 0.852 | 0.826 |
+| `getdata` | 1,225 | 0.430 | 0.415 | 0.455 | 0.442 |
+| Unclassified Bitcoin | 10,787 | 0.589 | 0.566 | 0.723 | 0.681 |
+| `other` | 354,741 | 0.99994 | 0.99969 | 0.99986 | 0.99858 |
+
+Full blocks remain in the later targets after removing the opening and history. XGBoost identifies them with precision 0.856 and recall 0.651; the CNN has precision 0.859 and recall 0.664. About one third of labeled block windows are not classified as `block`. This is an error about the **activity type**, not necessarily a failure to recognize the connection as Bitcoin v2.
+
+For **Bitcoin v2 detection versus background/v1 traffic**, using those same later windows:
+
+| Model and inputs | V2 connections found | Background/v1 connections called v2 | V2 windows missed | Background/v1 windows called v2 |
+| --- | ---: | ---: | ---: | ---: |
+| XGBoost, with opening context | 206 / 207 | 1 / 4,409 | 6 / 73,599 | 40 / 354,741 |
+| XGBoost, without opening/history | 207 / 207 | 2 / 4,409 | 78 / 73,599 | 200 / 354,741 |
+| CNN, with opening context | 207 / 207 | 4 / 4,409 | 11 / 73,599 | 94 / 354,741 |
+| CNN, without opening/history | 207 / 207 | 31 / 4,409 | 82 / 73,599 | 970 / 354,741 |
+
+Removing opening/history reduces the mean class score from 0.774 to 0.742 for XGBoost and from 0.801 to 0.765 for the CNN. The opening helps, but later activity still provides useful signal. Both models trained without opening/history find every v2 connection in this subset, but introduce false alarms, especially the CNN. More window errors and better majority-vote recall can coexist: the errors occur in different flows. This is not evidence that removing context improves detection.
 
 ## Which inputs matter?
 
-### Comparing both models with the same method
+Grouped permutation freezes the mixed models and shuffles related inputs, jointly across the CNN context. It uses **all 218,668 unambiguous activity windows in the new held-out workload**, including late full blocks. Values are decreases in mean class score on the same 0–1 scale; ± is the standard deviation over three shuffles. Larger decreases indicate greater dependence on the perturbed inputs.
 
-To compare their dependence on the inputs, I used **grouped permutation** on the same **1,820 sampled test windows**. Each model stays fixed while related measurements are shuffled between examples. The CNN's group is shuffled jointly across its input context. Class-prevalence weights correct the scoring of the balanced sample.
-
-The table shows the **absolute macro F1 decrease (0–1 scale)**, averaged over three shuffles; ± is the standard deviation across those shuffles. A larger drop means the model was more sensitive to that group under this perturbation.
-
-| Shuffled input group | Model 1: XGBoost | Model 2: CNN |
+| Shuffled input group | XGBoost | CNN |
 | --- | ---: | ---: |
-| Burst timing | 0.128 ± 0.004 | 0.407 ± 0.052 |
-| Current-window sizes/counts | 0.239 ± 0.006 | 0.352 ± 0.031 |
-| Neighboring-window features | 0.275 ± 0.010 | 0.146 ± 0.010 |
-| Whole-flow statistics | 0.200 ± 0.022 | 0.173 ± 0.042 |
-| Connection age | 0.103 ± 0.012 | 0.146 ± 0.015 |
-| Opening exchange | 0.057 ± 0.034 | 0.169 ± 0.016 |
-| TCP / UDP | 0.003 ± 0.001 | 0.069 ± 0.003 |
+| Window sizes and counts | 0.462 ± 0.007 | 0.561 ± 0.003 |
+| Whole-flow statistics | 0.318 ± 0.006 | 0.480 ± 0.005 |
+| Burst timing | 0.201 ± 0.013 | 0.476 ± 0.006 |
+| Neighboring-window features | 0.268 ± 0.009 | 0.170 ± 0.009 |
+| Opening exchange | 0.134 ± 0.006 | 0.259 ± 0.004 |
+| Elapsed time and phase flags | 0.067 ± 0.016 | 0.088 ± 0.005 |
+| TCP / UDP | 0.058 ± 0.003 | 0.150 ± 0.002 |
 
-![Feature dependence of Model 1 (XGBoost) and Model 2 (temporal CNN)](../../images/bip324-ml-v2-20261027/group-permutation.png)
+Both depend strongly on sizes/counts and whole-flow statistics. The CNN also depends strongly on burst timing; XGBoost is more sensitive to the explicitly engineered neighboring-window features. Disrupting opening inputs affects both, rather than being an XGBoost-only effect.
 
-- **Model 1 relies most on explicit window history/context:** neighboring-window features cause a 0.275 F1 drop, followed by current-window sizes/counts (0.239) and whole-flow statistics (0.200).
-- **Model 2 relies most on burst timing and current sizes/counts:** their mean drops are 0.407 and 0.352. Duration, rate and gaps in the bursts matter more to this model than to Model 1 (0.128 for the same timing group).
-- **Opening-exchange features also affect Model 2 more:** 0.169 versus 0.057. Conversely, its explicit neighboring-window columns cause a smaller drop (0.146 versus 0.275). The CNN already receives neighboring windows as a sequence, which can substitute for some engineered lag/lead columns.
+To distinguish the elapsed-time measurement from its phase flags, I also shuffled them separately:
 
-On this sample, unperturbed macro F1 was 0.746 for Model 1 and 0.807 for Model 2; these are sample estimates, separate from the full-test scores above. For example, the CNN's timing perturbation lowers its sampled F1 from about 0.807 to 0.400: an absolute decrease of **0.407**.
+| Time input shuffled alone | XGBoost decrease | CNN decrease |
+| --- | ---: | ---: |
+| Seconds since first observed packet | 0.046 ± 0.009 | 0.077 ± 0.008 |
+| Three age-phase flags | 0.004 ± 0.002 | 0.093 ± 0.007 |
 
-Both models depend on complete-flow information, but the feature groups are not equally influential. Shuffling can create unrealistic combinations and correlated inputs can substitute for each other; these drops do not predict performance after feature removal, padding or another privacy intervention.
+**Relative time contributes to both models; absolute timestamps are unused.** The inputs are correlated, and these decreases are neither additive nor causal. Jointly shuffling time and phases can affect a model differently from breaking their consistency individually.
 
-### Additional detail for Model 1: SHAP
+![Feature dependence of both mixed models, including separate elapsed-time and phase-flag tests](../../images/bip324-ml-v2-20261124/feature-dependence.png)
 
-[Exact TreeSHAP](https://github.com/victorandre957/bip324-traffic-ml/tree/main/src/bip324_traffic_ml/explanation) provides individual-feature attribution for **Model 1**, using 1,858 selected windows with population weighting. Its largest mean absolute contributions, averaged over output-class scores, were:
+[TreeSHAP](https://github.com/victorandre957/bip324-traffic-ml/tree/main/src/bip324_traffic_ml/explanation) provides an individual-input view for XGBoost. These global averages use 2,876 population-weighted examples from that same test:
 
-| Model 1 input | Mean absolute SHAP |
+| XGBoost input | Mean absolute SHAP contribution |
 | --- | ---: |
-| Connection age | 0.650 |
-| Current-window payload bytes | 0.648 |
-| Complete-flow payload packet count | 0.597 |
-| Packets in the previous four observed windows | 0.411 |
-| Complete-flow duration | 0.390 |
+| Current-window payload bytes | 0.773 |
+| Complete-flow payload packet count | 0.609 |
+| Seconds since first observed packet | 0.510 |
+| Complete-flow duration | 0.459 |
+| Previous observed window payload bytes | 0.358 |
 
-See the [Model 1 SHAP plot](../../images/bip324-ml-v2-20261027/xgboost-shap-global.png). Within true activities, handshake attribution emphasized prior packet counts, age and next-window bytes; `inv`/`getdata` emphasized byte volumes and nearby windows; `tx` emphasized gaps and byte history. Block attribution depended strongly on age and flow duration, suggesting a possible lab timing shortcut.
+SHAP contributions use raw class-score units, whereas permutation measures changes in identification score. They cannot be compared numerically. Shuffling can also create unrealistic combinations; strong dependence does not prove that the feature is indispensable after retraining or that changing it on the wire will hide traffic.
 
-**SHAP uses raw class-score units; permutation measures F1 drops. Their numbers cannot be compared directly.** The CNN findings above are group-level permutation results; they do not establish which individual burst measurement dominates or provide CNN SHAP values.
+## What this means for traffic hiding
 
-Good handshake F1 here also uses later traffic and completed-flow information. It does not demonstrate identification from the opening packets alone. A causal feature set and grouped ablations are needed to assess what remains available to an online observer.
+The results support two separate findings: **Bitcoin connections are highly detectable in this lab**, and **several later activity classes remain recognizable without observing the opening**. Encryption hides contents while recurring sizes, directional exchanges and timing still provide statistical evidence. SSeparating getdata from traffic windows without a specific activity label remains substantially less reliable than identifying inv, full blocks or transactions.
 
-Model 2 used 32 GPU epochs and batches of 1,024. These remain exploratory lab results: some test examples have guided earlier comparisons, preparation differs between older and newer data, and topology, Core build and generators are shared. Untouched data, randomized ports and different traffic environments are still needed before claims about mainnet or an ISP.
+Consequently, **handshake-only defenses should not be assumed sufficient**. The retained representation lets both models recognize established Bitcoin connections and later activities. Countermeasure research should also test the sizes, timing and directional patterns of ongoing traffic, with realistic background connections and explicit false-alarm measurements.
+
+This experiment removes observations/features; it does not modify the protocol on the wire. A real protocol change can affect subsequent traffic too. Establishing whether a particular defense works requires new captures and retraining/evaluation against that defense.
+
+## Limits of this analysis
+
+These conclusions apply to the controlled workloads measured here. Shared implementations, generated background traffic, correlated windows and one training seed per condition remain limitations of this campaign. Activity labels approximate log events in time windows; the unclassified Bitcoin category does not identify a specific message type.
